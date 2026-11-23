@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>loadout Prototype</title>
+<style>
+/* Design tokens: dark-first precision instrument, light tokens below. */
+:root {
+  --bg: #0B0D10; --surface: #12151B; --surface-2: #171B22; --surface-3: #1D222A;
+  --border: #20252E; --border-2: #2C323D; --text: #E7E9EC; --dim: #98A1B0; --faint: #5D6676;
+  --emerald: #3DDC97; --emerald-dim: rgba(61,220,151,.14);
+  --amber: #F5B544; --amber-dim: rgba(245,181,68,.14);
+  --rose: #F2647A; --rose-dim: rgba(242,100,122,.14);
+  --sky: #6CB6FF; --sky-dim: rgba(108,182,255,.14);
+  --accent: #E0DDBD; --accent-dim: rgba(224,221,189,.16); --brand-o: #C8D46A; --on-accent: #0B0D10;
+  --shadow: 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px var(--border-2);
+  --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #F2F2EE; --surface: #FFFFFF; --surface-2: #F7F7F4; --surface-3: #EDEDE8;
+  --border: #E1E1DA; --border-2: #CFCFC7; --text: #14161A; --dim: #596070; --faint: #8C929E;
+  --emerald: #0C9466; --emerald-dim: rgba(12,148,102,.12);
+  --amber: #B06F0E; --amber-dim: rgba(176,111,14,.12);
+  --rose: #CF3553; --rose-dim: rgba(207,53,83,.10);
+  --sky: #2273C9; --sky-dim: rgba(34,115,201,.10);
+  --accent: #6F6A3A; --accent-dim: rgba(111,106,58,.14); --brand-o: #6E7D12; --on-accent: #FFFFFF;
+  --shadow: 0 24px 64px rgba(20,22,26,.18), 0 0 0 1px var(--border-2);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.dim { color: var(--dim); } .faint { color: var(--faint); }
+.em { color: var(--emerald); } .am { color: var(--amber); } .ro { color: var(--rose); } .sk { color: var(--sky); }
+kbd { font: 11px var(--mono); padding: 1px 5px; border: 1px solid var(--border-2); border-bottom-width: 2px; border-radius: 4px; color: var(--dim); background: var(--surface-2); }
+
+/* App shell */
+.app { display: grid; grid-template-columns: 244px 1fr; height: 100vh; }
+.rail { border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+.brand { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); }
+.brand b { font: 700 18px var(--mono); letter-spacing: -.02em; }
+.brand b i { color: var(--brand-o); font-style: normal; }
+.brand p { margin: 4px 0 0; color: var(--faint); font-size: 11px; }
+.ab-list { list-style: none; margin: 0; padding: 8px; overflow: auto; flex: 1; }
+.ab-list button { width: 100%; text-align: left; display: grid; grid-template-columns: 26px 1fr; gap: 2px 8px; padding: 8px; border: 1px solid transparent; border-radius: 8px; background: none; }
+.ab-list button:hover { background: var(--surface-2); }
+.ab-list button[aria-current="true"] { background: var(--surface-3); border-color: var(--border-2); }
+.ab-list .n { font: 600 11px var(--mono); color: var(--faint); grid-row: span 2; padding-top: 1px; }
+.ab-list button[aria-current="true"] .n { color: var(--accent); }
+.ab-list .t { font-weight: 600; font-size: 12.5px; }
+.ab-list .d { color: var(--faint); font-size: 11px; line-height: 1.35; }
+.rail-foot { border-top: 1px solid var(--border); padding: 10px 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.ab-head { display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--border); min-height: 52px; }
+.ab-head .num { font: 600 11px var(--mono); color: var(--accent); border: 1px solid var(--accent-dim); background: var(--accent-dim); padding: 2px 6px; border-radius: 4px; }
+.ab-head h1 { font-size: 14px; margin: 0; font-weight: 600; }
+.ab-head p { margin: 0; color: var(--faint); font-size: 12px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flow-links { display: flex; gap: 6px; }
+.artboard { flex: 1; min-height: 0; overflow: auto; position: relative; }
+
+/* Generic controls */
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border-2); background: var(--surface-2); font-size: 12px; white-space: nowrap; }
+.btn:hover { border-color: var(--faint); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: none; border-color: transparent; color: var(--dim); }
+.btn.ghost:hover { color: var(--text); background: var(--surface-2); }
+.btn.sm { height: 24px; padding: 0 8px; font-size: 11.5px; }
+.btn.danger { color: var(--rose); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px; font: 500 10.5px var(--mono); border: 1px solid var(--border-2); color: var(--dim); white-space: nowrap; }
+.badge.em { color: var(--emerald); border-color: transparent; background: var(--emerald-dim); }
+.badge.am { color: var(--amber); border-color: transparent; background: var(--amber-dim); }
+.badge.ro { color: var(--rose); border-color: transparent; background: var(--rose-dim); }
+.badge.sk { color: var(--sky); border-color: transparent; background: var(--sky-dim); }
+.badge.btnish { cursor: pointer; }
+.seg { display: inline-flex; border: 1px solid var(--border-2); border-radius: 7px; padding: 2px; background: var(--surface-2); gap: 2px; }
+.seg button { border: 0; background: none; height: 24px; padding: 0 9px; border-radius: 5px; font-size: 11.5px; color: var(--dim); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); box-shadow: 0 0 0 1px var(--border-2); }
+.field { display: grid; gap: 5px; }
+.field label { font-size: 11.5px; color: var(--dim); font-weight: 500; }
+.input { height: 32px; border-radius: 6px; border: 1px solid var(--border-2); background: var(--bg); padding: 0 10px; width: 100%; }
+.input.mono { font-family: var(--mono); font-size: 12px; }
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.hint { font-size: 11px; color: var(--faint); }
+.card { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; }
+.section-label { font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 0 0 8px; }
+
+/* Switchboard top bar */
+.topbar { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 18px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.search { position: relative; width: 260px; }
+.search input { padding-left: 28px; padding-right: 30px; }
+.search svg { position: absolute; left: 9px; top: 9px; color: var(--faint); }
+.search kbd { position: absolute; right: 7px; top: 7px; }
+.pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.pill { height: 26px; padding: 0 9px; border-radius: 13px; border: 1px solid var(--border-2); background: none; font-size: 11.5px; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+.pill b { font: 600 10.5px var(--mono); color: var(--faint); }
+.pill[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.pill[aria-pressed="true"] b { color: var(--bg); opacity: .7; }
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+.spacer { flex: 1; }
+.select { height: 28px; border-radius: 6px; border: 1px solid var(--border-2); background: var(--surface-2); padding: 0 8px; font-size: 12px; }
+.profile { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--faint); }
+.scan-ms { font: 600 10.5px var(--mono); color: var(--emerald); }
+.undo-pill { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 4px 0 10px; border-radius: 14px; border: 1px dashed var(--border-2); font-size: 11.5px; color: var(--dim); max-width: 320px; }
+.undo-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Matrix */
+.matrix-wrap { padding: 0 18px 80px; }
+table.matrix { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.matrix th, .matrix td { border-bottom: 1px solid var(--border); padding: 0; }
+.matrix thead th { position: sticky; background: var(--bg); z-index: 10; vertical-align: bottom; }
+.matrix thead tr.groups th { top: var(--topbar-h, 49px); height: 26px; font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); text-align: left; padding: 0 10px; border-bottom: 0; }
+.matrix thead tr.groups th.g span { display: block; border-top: 2px solid var(--border-2); padding-top: 4px; }
+.matrix thead tr.groups th.g.claude span { border-top-color: var(--accent); color: var(--dim); }
+.matrix thead tr.cols th { top: calc(var(--topbar-h, 49px) + 26px); }
+.matrix .skill-col { position: sticky; left: 0; z-index: 5; background: var(--bg); min-width: 340px; max-width: 340px; border-right: 1px solid var(--border); }
+.matrix thead .skill-col { z-index: 12; }
+.colhead { width: 128px; min-width: 128px; padding: 8px 10px 10px !important; text-align: left; border-left: 1px solid var(--border); position: relative; }
+.colhead.cursor { background: var(--surface) !important; }
+.colhead .name { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; white-space: nowrap; }
+.colhead .glyph { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; font: 700 9px var(--mono); background: var(--surface-3); border: 1px solid var(--border-2); color: var(--dim); flex: none; }
+.colhead .path { font: 10.5px var(--mono); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin: 2px 0 6px; max-width: 108px; }
+.colhead .menu-btn { position: absolute; right: 4px; top: 6px; width: 20px; height: 20px; border: 0; background: none; color: var(--faint); border-radius: 4px; }
+.colhead .menu-btn:hover { background: var(--surface-3); color: var(--text); }
+.meter { height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--emerald); border-radius: 2px; }
+.meter.hot i { background: var(--amber); }
+.budget { font: 10.5px var(--mono); color: var(--dim); margin-top: 4px; white-space: nowrap; }
+.budget.hot { color: var(--amber); }
+.addcol { min-width: 120px; padding: 8px 10px 10px !important; border-left: 1px solid var(--border); text-align: left; }
+.addcol button { width: 100%; height: 58px; border: 1px dashed var(--border-2); border-radius: 8px; background: none; color: var(--dim); font-size: 12px; }
+.addcol button:hover { border-color: var(--accent); color: var(--accent); }
+.skill-cell { padding: 8px 12px !important; cursor: pointer; }
+.skill-cell .row1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.skill-cell .slug { font: 600 12.5px var(--mono); white-space: nowrap; }
+.skill-cell .desc { color: var(--faint); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 1px 0 4px; }
+.skill-cell .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.matrix tbody tr:hover td { background: var(--surface); }
+.matrix tbody tr.cursor-row td { background: var(--surface); }
+.matrix tbody tr.selected td.skill-col { box-shadow: inset 2px 0 0 var(--accent); }
+.matrix td.cell { text-align: center; border-left: 1px solid var(--border); height: 58px; }
+.matrix td.cell.cursor-col { background: var(--surface); }
+.empty-row td { padding: 40px !important; text-align: center; color: var(--faint); }
+
+/* Jack (intersection cell) */
+.jack { width: 100%; height: 100%; min-height: 56px; border: 0; background: none; display: grid; place-items: center; position: relative; }
+.jack .j { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border-2); display: grid; place-items: center; font: 700 9px var(--mono); transition: transform .08s ease; }
+.jack:hover .j { border-color: var(--dim); transform: scale(1.1); }
+.jack .lbl { position: absolute; bottom: 5px; left: 0; right: 0; font: 9.5px var(--mono); color: var(--faint); opacity: 0; transition: opacity .1s; }
+.jack:hover .lbl, .jack.cur .lbl { opacity: 1; }
+.jack.cur { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 4px; }
+.jack[data-s="on"] .j { background: var(--emerald); border-color: var(--emerald); box-shadow: 0 0 0 4px var(--emerald-dim), 0 0 12px var(--emerald-dim); }
+.jack[data-s="on"]::before { content: ""; position: absolute; left: 0; right: 50%; top: 50%; height: 1px; background: linear-gradient(90deg, transparent, var(--emerald)); opacity: .35; }
+.jack[data-s="copy"] .j { border-radius: 3px; border-color: var(--amber); background: var(--amber-dim); width: 13px; height: 13px; }
+.jack[data-s="drift"] .j { width: 22px; border-radius: 7px; border-color: var(--amber); background: var(--amber-dim); color: var(--amber); }
+.jack[data-s="fm"] .j { border: 1.5px dashed var(--rose); color: var(--rose); background: var(--rose-dim); }
+.jack[data-s="broken"] .j { border: 1.5px dashed var(--rose); color: var(--rose); }
+.jack[data-s="shadow"] .j { border-color: var(--sky); color: var(--sky); background: var(--sky-dim); }
+.legend { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 16px; padding: 8px 18px; border-top: 1px solid var(--border); background: var(--bg); font-size: 11px; color: var(--dim); z-index: 20; }
+.legend .jack { width: 22px; min-height: 18px; height: 18px; display: inline-grid; pointer-events: none; }
+.legend .jack::before { display: none; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend .keys { margin-left: auto; color: var(--faint); }
+
+/* Dropdown */
+.menu { position: fixed; z-index: 80; min-width: 230px; background: var(--surface); border-radius: 8px; box-shadow: var(--shadow); padding: 4px; }
+.menu button { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; border: 0; background: none; height: 30px; padding: 0 10px; border-radius: 5px; font-size: 12px; }
+.menu button:hover { background: var(--surface-3); }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+.menu .sub { padding-left: 24px; color: var(--dim); }
+
+/* Overlays */
+.scrim { position: fixed; inset: 0; background: rgba(5,6,8,.55); z-index: 60; animation: fade .12s ease; }
+:root[data-theme="light"] .scrim { background: rgba(20,22,26,.25); }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(720px, 100vw); background: var(--surface); border-left: 1px solid var(--border-2); z-index: 70; display: flex; flex-direction: column; animation: slide .16s cubic-bezier(.2,.8,.2,1); box-shadow: var(--shadow); }
+.drawer.wide { width: min(1080px, 100vw); }
+.modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); background: var(--surface); border-radius: 12px; z-index: 70; display: flex; flex-direction: column; box-shadow: var(--shadow); animation: pop .14s ease; }
+@keyframes fade { from { opacity: 0 } }
+@keyframes slide { from { transform: translateX(40px); opacity: 0 } }
+@keyframes pop { from { transform: translate(-50%,-48%); opacity: 0 } }
+.ov-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.ov-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.ov-head .x { margin-left: auto; }
+.ov-body { flex: 1; overflow: auto; padding: 16px 18px; min-height: 0; }
+.ov-foot { border-top: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Diff resolver */
+.instances { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.inst { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); position: relative; }
+.inst .tag { font: 700 10px var(--mono); padding: 1px 6px; border-radius: 4px; background: var(--surface-3); color: var(--dim); }
+.inst.a { border-color: color-mix(in srgb, var(--emerald) 40%, var(--border)); }
+.inst.b { border-color: color-mix(in srgb, var(--amber) 40%, var(--border)); }
+.inst .p { font: 11.5px var(--mono); margin: 6px 0 2px; word-break: break-all; }
+.diff-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.diff { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font: 11.5px/1.65 var(--mono); }
+.diff-head { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.diff-head div { padding: 6px 10px; color: var(--dim); font-size: 11px; }
+.diff-head div + div { border-left: 1px solid var(--border); }
+.diff-row { display: grid; grid-template-columns: 1fr 1fr; }
+.diff-row > div { padding: 0 10px 0 0; white-space: pre-wrap; word-break: break-word; display: grid; grid-template-columns: 34px 1fr; min-height: 19px; }
+.diff-row > div + div { border-left: 1px solid var(--border); }
+.diff-row .ln { color: var(--faint); text-align: right; padding-right: 10px; user-select: none; }
+.diff-row .add { background: var(--emerald-dim); }
+.diff-row .del { background: var(--rose-dim); }
+.diff-row .blank { background: repeating-linear-gradient(135deg, transparent 0 6px, var(--surface-2) 6px 7px); }
+.diff.unified .diff-row { grid-template-columns: 1fr; }
+.u-line { display: grid; grid-template-columns: 34px 34px 16px 1fr; white-space: pre-wrap; min-height: 19px; }
+.u-line.add { background: var(--emerald-dim); } .u-line.del { background: var(--rose-dim); }
+.u-line .ln { color: var(--faint); text-align: right; padding-right: 8px; }
+.tree { font: 12px/1.9 var(--mono); }
+.tree-row { display: grid; grid-template-columns: 1fr 90px 90px; padding: 0 10px; border-bottom: 1px solid var(--border); }
+.tree-row.h { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; background: var(--surface-2); }
+.choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.choice { text-align: left; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-2); background: var(--surface-2); display: grid; gap: 3px; }
+.choice[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.choice b { font-size: 12.5px; } .choice span { font-size: 11px; color: var(--faint); }
+.ops { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); font: 11.5px/1.8 var(--mono); }
+.ops .op { display: grid; grid-template-columns: 96px 1fr; gap: 8px; }
+.op-k { font-weight: 700; font-size: 10.5px; }
+
+/* Inspector */
+.compat { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.compat div { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); font-size: 11.5px; }
+.warnbox { border: 1px solid color-mix(in srgb, var(--rose) 45%, var(--border)); background: var(--rose-dim); border-radius: 8px; padding: 12px; margin: 12px 0; }
+.warnbox.ok { border-color: color-mix(in srgb, var(--emerald) 45%, var(--border)); background: var(--emerald-dim); }
+.warnbox h4 { margin: 0 0 4px; font-size: 12.5px; }
+.warnbox p { margin: 0 0 8px; font-size: 12px; color: var(--dim); }
+.linkmap { font: 11.5px/1.5 var(--mono); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.linkmap div { display: grid; grid-template-columns: 20px 1fr auto; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--border); align-items: center; }
+.linkmap div:last-child { border-bottom: 0; }
+.linkmap .arrow { color: var(--faint); }
+.files { display: grid; grid-template-columns: 190px 1fr; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; min-height: 260px; }
+.files nav { border-right: 1px solid var(--border); background: var(--surface-2); padding: 6px; font: 11.5px var(--mono); }
+.files nav button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 4px 8px; border-radius: 4px; color: var(--dim); }
+.files nav button[aria-current="true"] { background: var(--surface-3); color: var(--text); }
+.files nav .dir { padding: 6px 8px 2px; color: var(--faint); }
+.files pre, .files textarea { margin: 0; padding: 10px 12px; font: 11.5px/1.65 var(--mono); white-space: pre-wrap; background: var(--bg); border: 0; width: 100%; height: 100%; min-height: 260px; resize: vertical; }
+.files .viewer { display: flex; flex-direction: column; min-width: 0; }
+.files .vbar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); font: 11px var(--mono); color: var(--faint); }
+.kv { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; font-size: 12px; }
+.kv dt { color: var(--faint); } .kv dd { margin: 0; font-family: var(--mono); font-size: 11.5px; word-break: break-all; }
+.insp-sec { margin-bottom: 18px; }
+
+/* Wizard */
+.wiz { max-width: 1120px; margin: 0 auto; padding: 22px 18px 60px; }
+.steps { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 16px; border: 1px solid var(--border); color: var(--faint); font-size: 12px; background: none; }
+.step i { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 600 10.5px var(--mono); font-style: normal; background: var(--surface-3); }
+.step[aria-current="true"] { color: var(--text); border-color: var(--border-2); background: var(--surface); }
+.step[aria-current="true"] i { background: var(--accent); color: var(--on-accent); }
+.step.done i { background: var(--emerald-dim); color: var(--emerald); }
+.scanline { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding: 18px 20px; margin-bottom: 14px; }
+.scanline .big { font: 700 34px/1 var(--mono); letter-spacing: -.03em; }
+.scanline .big small { font-size: 14px; color: var(--dim); font-weight: 500; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+.stat { padding: 12px 14px; }
+.stat .v { font: 700 22px var(--mono); }
+.stat .l { font-size: 11.5px; color: var(--dim); }
+.stat .s { font: 10.5px var(--mono); color: var(--faint); margin-top: 4px; }
+.roots { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+.rootlist { font: 12px var(--mono); }
+.rootlist div { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 7px 14px; border-bottom: 1px solid var(--border); align-items: center; }
+.rootlist div:last-child { border-bottom: 0; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.plan-table th { text-align: left; font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding: 8px 10px; border-bottom: 1px solid var(--border); background: var(--surface-2); position: sticky; top: 0; }
+.plan-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.plan-table td.p { font: 11.5px var(--mono); }
+.plan-table tr.off td { opacity: .45; }
+.opk { font: 700 10px var(--mono); padding: 2px 6px; border-radius: 4px; }
+.opk.MOVE { background: var(--sky-dim); color: var(--sky); }
+.opk.LINK { background: var(--emerald-dim); color: var(--emerald); }
+.opk.QUARANTINE { background: var(--amber-dim); color: var(--amber); }
+.opk.REPAIR { background: var(--rose-dim); color: var(--rose); }
+.opk.REVIEW { background: var(--surface-3); color: var(--dim); }
+.opk.KEEP { background: var(--surface-3); color: var(--dim); }
+.log { font: 12px/1.75 var(--mono); padding: 14px 16px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); min-height: 220px; }
+.safety { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--dim); padding: 10px 14px; }
+.safety span::before { content: "✓ "; color: var(--emerald); }
+
+/* Host IDE embed */
+.host { display: grid; grid-template-columns: 220px 1fr 380px; height: 100%; min-height: 640px; background: var(--bg); }
+.host.nodrawer { grid-template-columns: 220px 1fr; }
+.h-threads { border-right: 1px solid var(--border); background: var(--surface); padding: 10px 8px; display: flex; flex-direction: column; gap: 4px; }
+.h-threads h3 { font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 4px 8px 6px; }
+.thread { text-align: left; border: 1px solid transparent; background: none; border-radius: 7px; padding: 8px; display: grid; gap: 2px; }
+.thread[aria-current="true"] { background: var(--surface-3); border-color: var(--border-2); }
+.thread b { font-size: 12px; font-weight: 600; }
+.thread span { font: 10.5px var(--mono); color: var(--faint); }
+.h-main { display: flex; flex-direction: column; min-width: 0; }
+.h-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.h-chat { flex: 1; overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 640px; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); font-size: 12.5px; }
+.msg.me { align-self: flex-end; background: var(--surface-3); }
+.msg .who { font: 600 10.5px var(--mono); color: var(--faint); margin-bottom: 4px; display: block; }
+.chip { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 4px; font: 600 11px var(--mono); background: var(--accent-dim); color: var(--accent); margin-right: 4px; }
+.composer-wrap { padding: 12px 14px 14px; border-top: 1px solid var(--border); position: relative; }
+.composer { border: 1px solid var(--border-2); border-radius: 10px; background: var(--surface); padding: 8px; }
+.composer .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+.composer input { border: 0; background: none; width: 100%; height: 28px; outline: none; font-size: 13px; }
+.composer .cbar { display: flex; align-items: center; gap: 8px; font: 10.5px var(--mono); color: var(--faint); }
+.picker { position: absolute; left: 14px; right: 14px; bottom: calc(100% - 4px); background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); padding: 4px; max-height: 340px; overflow: auto; z-index: 5; }
+.picker .ph { display: flex; justify-content: space-between; padding: 6px 10px; font: 10.5px var(--mono); color: var(--faint); }
+.pick { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 7px 10px; border-radius: 6px; }
+.pick:hover, .pick.hl { background: var(--surface-3); }
+.pick .slug { font: 600 12px var(--mono); }
+.pick .desc { font-size: 11px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick .acts { display: flex; gap: 6px; align-items: center; }
+.h-drawer { border-left: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+.h-drawer header { padding: 10px 12px; border-bottom: 1px solid var(--border); display: grid; gap: 8px; }
+.h-drawer .tagname { font: 11px var(--mono); color: var(--faint); }
+.mini { overflow: auto; flex: 1; }
+.mini table { border-collapse: collapse; width: 100%; }
+.mini th { font: 700 9.5px var(--mono); color: var(--faint); padding: 6px 0; position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+.mini th.active { color: var(--accent); }
+.mini td { border-bottom: 1px solid var(--border); padding: 0; }
+.mini td.s { font: 11.5px var(--mono); padding: 6px 10px; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.mini .jack { min-height: 30px; height: 30px; }
+.mini .jack .j { width: 11px; height: 11px; font-size: 8px; }
+.mini .jack[data-s="drift"] .j { width: 17px; }
+.mini .jack .lbl { display: none; }
+.mini td.activecol { background: var(--accent-dim); }
+.wt { padding: 12px; display: grid; gap: 8px; }
+.wt-item { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 8px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); }
+
+/* Terminal */
+.term-stage { padding: 22px 18px 40px; display: grid; gap: 12px; justify-items: center; }
+.term-ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.term { background: #08090B; color: #C9CED6; border-radius: 10px; box-shadow: 0 0 0 1px #23272F, 0 30px 80px rgba(0,0,0,.5); overflow: hidden; max-width: 100%; }
+.term .tbar { height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: #15171B; border-bottom: 1px solid #23272F; font: 11px var(--mono); color: #6B7280; }
+.term .tbar i { width: 10px; height: 10px; border-radius: 50%; background: #2A2E36; display: inline-block; }
+.term .tbar span { margin: 0 auto; }
+.term pre { margin: 0; padding: 10px 12px; font: 12px/1.42 var(--mono); white-space: pre; overflow: auto; outline: none; }
+.term pre:focus { box-shadow: inset 0 0 0 1px #E0DDBD55; }
+.t-inv { background: #C9CED6; color: #08090B; }
+.t-acc { background: #E0DDBD; color: #08090B; }
+.t-em { color: #3DDC97; } .t-am { color: #F5B544; } .t-ro { color: #F2647A; } .t-sk { color: #6CB6FF; } .t-dim { color: #5D6676; } .t-b { color: #FFFFFF; font-weight: 700; }
+.t-sel { background: #1D222A; }
+.t-cur { background: #E0DDBD; color: #08090B; }
+
+/* Toast */
+.toasts { position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%); z-index: 90; display: grid; gap: 6px; justify-items: center; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 9px; background: var(--text); color: var(--bg); font-size: 12px; box-shadow: var(--shadow); animation: pop2 .16s ease; max-width: min(720px, calc(100vw - 32px)); }
+.toast .mono { font-size: 11px; opacity: .75; }
+.toast button { border: 0; background: rgba(127,127,127,.22); color: inherit; height: 24px; padding: 0 9px; border-radius: 5px; font-weight: 600; font-size: 11.5px; }
+@keyframes pop2 { from { transform: translateY(8px); opacity: 0 } }
+.help { position: fixed; right: 18px; bottom: 50px; z-index: 85; width: 300px; padding: 14px; }
+.help div { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; color: var(--dim); }
+
+@media (max-width: 1200px) {
+  .host { grid-template-columns: 1fr 340px; }
+  .host.nodrawer { grid-template-columns: 1fr; }
+  .h-threads { display: none; }
+}
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .rail { border-right: 0; border-bottom: 1px solid var(--border); }
+  .ab-list { display: flex; overflow-x: auto; padding: 6px; gap: 4px; }
+  .ab-list li { flex: none; }
+  .ab-list button { width: auto; grid-template-columns: auto; }
+  .ab-list .d, .rail-foot, .brand p { display: none; }
+  .ab-list .n { grid-row: auto; }
+  .brand { padding: 10px 16px; }
+  .ab-head p, .flow-links { display: none; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .roots, .instances, .choices { grid-template-columns: 1fr; }
+  .host, .host.nodrawer { grid-template-columns: 1fr; }
+  .h-threads { display: none; }
+  .search { width: 100%; }
+  .matrix .skill-col { min-width: 210px; max-width: 210px; }
+  .files { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="Artboards">
+    <div class="brand"><b>l<i>o</i>adout</b><p>GNU stow for AI agent skills · clickable prototype</p></div>
+    <ul class="ab-list" id="ab-list"></ul>
+    <div class="rail-foot">
+      <button class="btn sm" data-action="theme">Light / Dark</button>
+      <button class="btn sm" data-action="help"><kbd>?</kbd> Keys</button>
+      <button class="btn sm ghost" data-action="reset">Reset demo</button>
+    </div>
+  </nav>
+  <main class="stage">
+    <header class="ab-head" id="ab-head"></header>
+    <div class="artboard" id="artboard"></div>
+  </main>
+</div>
+<div id="overlay-root"></div>
+<div id="menu-root"></div>
+<div class="toasts" id="toast-root"></div>
+<div id="help-root"></div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ */
+/* Seed data: realistic power-user laptop                             */
+/* ------------------------------------------------------------------ */
+
+const TARGET_ORDER = ["ag", "cp", "cw", "cx", "oc", "zc", "ib"];
+
+const SEED_TARGETS = [
+  { id: "ag", name: "Antigravity", vendor: "Gemini", glyph: "AG", path: "~/.gemini/config/skills", adapter: "Antigravity (Strict)", strict: true },
+  { id: "cp", name: "Claude (Personal)", vendor: "Claude", glyph: "CP", path: "~/.claude/skills", adapter: "Claude Code" },
+  { id: "cw", name: "Claude (Work)", vendor: "Claude", glyph: "CW", path: "~/.claude-second/skills", adapter: "Claude Code", env: "CLAUDE_CONFIG_DIR=~/.claude-second" },
+  { id: "cx", name: "Codex", vendor: "OpenAI", glyph: "CX", path: "~/.codex/skills", adapter: "Codex" },
+  { id: "oc", name: "OpenCode", vendor: "OpenCode", glyph: "OC", path: "~/.config/opencode/skills", adapter: "OpenCode" },
+  { id: "zc", name: "ZCode", vendor: "Z.ai", glyph: "ZC", path: "~/.zcode/skills", adapter: "ZCode" },
+  { id: "ib", name: "Internal Bot", vendor: "Custom", glyph: "IB", path: "~/tools/release-bot/skills", adapter: "Custom (Lenient)", custom: true },
+];
+
+// Wiring string order follows TARGET_ORDER: ag cp cw cx oc zc ib.
+// . off   o wired symlink   c unmanaged physical copy   d drifted copy
+// f frontmatter incompatible   s shadowed by plugin   b broken symlink
+const CODE_TO_STATE = { ".": "off", o: "on", c: "copy", d: "drift", f: "fm", s: "shadow", b: "broken" };
+
+const SEED_SKILLS = [
+  ["playwright-e2e", "Write and debug Playwright end-to-end tests with trace-viewer triage", 120, ".ooood.", { scripts: true, tags: ["frontend", "testing"], drift: true }],
+  ["rust-perf-audit", "Profile Rust hot paths with cargo flamegraph and criterion, flag allocations in loops", 95, "fo.o...", { scripts: true, tags: ["backend"], fm: true }],
+  ["k8s-prod-runbook", "EKS production incident runbook: rollout, rollback, pod triage, PagerDuty notes", 180, "..o....", { refs: true, tags: ["backend"] }],
+  ["stripe-webhooks", "Idempotent Stripe webhook handlers, signature checks, local replay tooling", 110, ".cc....", { tags: ["backend"], dupes: 3 }],
+  ["legacy-migration", "Strangler-fig plan for carving legacy Rails modules into services", 85, ".o.b...", { tags: ["backend"] }],
+  ["git-worktree-hygiene", "Create, prune, and clean git worktrees without dirtying status", 70, "ooooo..", { tags: ["core"] }],
+  ["pr-review-checklist", "Structured PR review: correctness, tests, security, naming", 90, "ooooooo", { tags: ["core"] }],
+  ["postgres-query-tuning", "Read EXPLAIN ANALYZE, add the right index, avoid N+1 in ORMs", 140, ".ooo...", { scripts: true, tags: ["backend"] }],
+  ["terraform-plan-review", "Review terraform plan output for destroys, drift, and IAM widening", 130, "..oo...", { tags: ["backend"] }],
+  ["openapi-client-gen", "Generate typed TS clients from an OpenAPI schema and wire zod checks", 105, ".o..o..", { scripts: true, tags: ["backend", "frontend"] }],
+  ["react-a11y-audit", "Audit React components for WCAG AA: roles, labels, focus order", 115, "oo...o.", { tags: ["frontend"] }],
+  ["tailwind-design-tokens", "Map design tokens to Tailwind theme config and CSS variables", 80, ".o...o.", { tags: ["frontend"] }],
+  ["sentry-triage", "Group Sentry issues by root cause and draft fix tickets", 100, ".oo....", { tags: ["backend"] }],
+  ["release-notes-writer", "Draft release notes from merged PRs and conventional commits", 75, ".o....o", { tags: ["core"] }],
+  ["conventional-commits", "Write short imperative conventional commit messages", 55, "ooooooo", { tags: ["core"] }],
+  ["docker-slim-images", "Multi-stage Dockerfiles, distroless bases, layer cache order", 95, ".o.o..o", { scripts: true, tags: ["backend"] }],
+  ["python-uv-setup", "Bootstrap Python projects with uv, ruff, and pytest", 65, ".o..o..", { tags: ["backend"] }],
+  ["figma-to-tokens", "Export Figma variables into a token JSON for the design system", 110, ".s...o.", { tags: ["frontend"], plugin: "figma@claude-plugins-official" }],
+  ["deploy-prod", "Deploy my-app to production with canary and auto-rollback", 150, ".o.....", { scripts: true, tags: ["backend"], repo: "~/dev/my-app" }],
+  ["api-contract-tests", "Contract tests between saas API and its public SDK", 95, "..o....", { tags: ["backend"], repo: "~/dev/saas" }],
+  ["swiftui-previews", "Build SwiftUI previews with fixture data and dark mode variants", 90, ".o.....", { tags: ["mobile"] }],
+  ["grafana-dashboards", "Author Grafana dashboards as code with sane SLO panels", 120, "..o...o", { tags: ["backend"] }],
+  ["bun-monorepo", "Bun workspaces layout, shared tsconfig, and script conventions", 85, ".o..o..", { tags: ["frontend"] }],
+  ["security-headers", "Set CSP, HSTS, and cookie flags; verify with curl", 70, "oooo...", { tags: ["backend"] }],
+  ["llm-eval-harness", "Build a small eval harness with golden sets and LLM judges", 160, ".o.o...", { scripts: true, tags: ["backend"] }],
+  ["ios-crashlog-symbolicate", "Symbolicate iOS crash logs with dSYMs and atos", 100, ".o.....", { tags: ["mobile"] }],
+];
+
+const BUDGET_HOT = 1800;     // tok/turn where context noise starts to hurt routing
+const BUDGET_SCALE = 2600;   // meter full width
+
+function seedData() {
+  const skills = SEED_SKILLS.map(([slug, desc, tok, wiring, opts]) => ({
+    slug, desc, tok, scripts: !!opts.scripts, refs: !!opts.refs, tags: opts.tags || [],
+    drift: !!opts.drift, fm: !!opts.fm, dupes: opts.dupes || 0, repo: opts.repo || null, plugin: opts.plugin || null,
+  }));
+  const wiring = {};
+  SEED_SKILLS.forEach(([slug, , , codes]) => {
+    wiring[slug] = {};
+    TARGET_ORDER.forEach((tid, i) => { wiring[slug][tid] = CODE_TO_STATE[codes[i]]; });
+  });
+  return { targets: SEED_TARGETS.map(t => ({ ...t })), skills, wiring };
+}
+
+/* ------------------------------------------------------------------ */
+/* State                                                              */
+/* ------------------------------------------------------------------ */
+
+const initialProfiles = () => ({ Default: null, "Backend Minimal": "backend", "Work Only": "work" });
+
+let state = freshState();
+let lastRenderedView = null;
+
+function freshState() {
+  const data = seedData();
+  return {
+    data,
+    defaultWiring: clone(data.wiring),
+    view: "wizard",          // wizard | board | host | tui
+    overlay: null,           // { type: diff|add|inspect, slug? }
+    filter: "all",
+    query: "",
+    profile: "Default",
+    profiles: initialProfiles(),
+    cursor: { r: 0, c: 0 },
+    selected: null,
+    undo: [],
+    quarantineCount: 0,
+    menu: null,
+    help: false,
+    wizard: { step: 1, plan: buildPlan(), applied: false, log: [] },
+    diff: { mode: "split", tab: "skill", choice: "a" },
+    inspect: { file: "SKILL.md", editing: false, showFix: false, edits: {} },
+    add: { name: "", path: "", adapter: "Claude Code", env: "", initial: "empty", cloneFrom: "cp", error: "" },
+    host: { thread: 0, scope: "global", text: "$pla", chips: [], drawer: true, hl: 0 },
+    tui: { size: "120", r: 0, c: 0, msg: "" },
+  };
+}
+
+function clone(v) { return JSON.parse(JSON.stringify(v)); }
+function esc(s) { return String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch])); }
+const targetById = id => state.data.targets.find(t => t.id === id);
+const skillBySlug = slug => state.data.skills.find(s => s.slug === slug);
+const cellState = (slug, tid) => (state.data.wiring[slug] || {})[tid] || "off";
+function stamp() { const d = new Date(); const p = n => String(n).padStart(2, "0"); return `2026-11-27T${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`; }
+
+/** Record a reversible snapshot before a mutation. */
+function checkpoint(label) {
+  state.undo.push({ label, data: clone(state.data), profile: state.profile, q: state.quarantineCount });
+  if (state.undo.length > 50) state.undo.shift();
+}
+
+function undoLast() {
+  const entry = state.undo.pop();
+  if (!entry) { toast("Nothing to undo"); return; }
+  state.data = entry.data; state.profile = entry.profile; state.quarantineCount = entry.q;
+  toast(`Undid: ${entry.label}`, { mono: "restored from ~/.agents/quarantine" });
+  render();
+}
+
+/* ------------------------------------------------------------------ */
+/* Derived values                                                     */
+/* ------------------------------------------------------------------ */
+
+const LOADED = new Set(["on", "copy", "drift", "shadow"]);
+
+function budget(tid) {
+  let count = 0, tok = 0;
+  const t = targetById(tid);
+  state.data.skills.forEach(s => {
+    const st = cellState(s.slug, tid);
+    if (LOADED.has(st) || (st === "fm" && !t.strict)) { count++; tok += s.tok; }
+  });
+  return { count, tok, hot: tok > BUDGET_HOT };
+}
+const fmtTok = n => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+
+function skillIssues(s) {
+  const states = state.data.targets.map(t => cellState(s.slug, t.id));
+  return {
+    drift: states.includes("drift") || s.drift,
+    dupes: s.dupes > 0 || states.includes("copy"),
+    broken: states.includes("broken"),
+    fm: s.fm,
+    repo: !!s.repo,
+  };
+}
+function needsAttention(s) { const i = skillIssues(s); return i.drift || i.dupes || i.broken || i.fm; }
+
+const FILTERS = [
+  { id: "all", label: "All", test: () => true },
+  { id: "attention", label: "Needs Attention", test: needsAttention, dot: "var(--accent)" },
+  { id: "drift", label: "Drifted", test: s => skillIssues(s).drift, dot: "var(--amber)" },
+  { id: "dupes", label: "Duplicates", test: s => skillIssues(s).dupes, dot: "var(--amber)" },
+  { id: "broken", label: "Broken", test: s => skillIssues(s).broken, dot: "var(--rose)" },
+  { id: "fm", label: "Frontmatter Issues", test: s => skillIssues(s).fm, dot: "var(--rose)" },
+  { id: "repo", label: "Project-Local", test: s => !!s.repo, dot: "var(--sky)" },
+];
+
+function matchesQuery(s, q) {
+  if (!q) return true;
+  const hay = `${s.slug} ${s.desc} ${s.tags.join(" ")} ${s.repo || ""}`.toLowerCase();
+  // Simple fuzzy: every query character appears in order in the slug, or substring anywhere.
+  if (hay.includes(q)) return true;
+  let i = 0;
+  for (const ch of s.slug) { if (ch === q[i]) i++; if (i === q.length) return true; }
+  return false;
+}
+
+function visibleSkills() {
+  const f = FILTERS.find(x => x.id === state.filter) || FILTERS[0];
+  const q = state.query.trim().toLowerCase();
+  return state.data.skills.filter(s => f.test(s) && matchesQuery(s, q));
+}
+
+const STATE_LABEL = {
+  on: "wired", off: "unwired", copy: "physical copy", drift: "drifted copy",
+  fm: "frontmatter ✗", shadow: "plugin shadow", broken: "broken link",
+};
+const STATE_GLYPH = { on: "", off: "", copy: "", drift: "⇄", fm: "!", shadow: "P", broken: "×" };
+
+/* ------------------------------------------------------------------ */
+/* Actions                                                            */
+/* ------------------------------------------------------------------ */
+
+function setCell(slug, tid, value) { state.data.wiring[slug][tid] = value; }
+
+/** Primary interaction on an intersection cell. */
+function activateCell(slug, tid) {
+  const st = cellState(slug, tid);
+  const t = targetById(tid);
+  const link = `${t.path}/${slug}`;
+  if (st === "on" || st === "off") {
+    const turnOn = st === "off";
+    const s = skillBySlug(slug);
+    checkpoint(`${turnOn ? "wired" : "unwired"} ${slug} → ${t.name}`);
+    setCell(slug, tid, turnOn && s.fm && t.strict ? "fm" : (turnOn ? "on" : "off"));
+    toast(turnOn ? `Wired ${slug} → ${t.name}` : `Unwired ${slug} from ${t.name}`,
+      { mono: turnOn ? `ln -s ~/.agents/skills/${slug} ${link}` : `rm ${link}  (symlink only)`, undo: true });
+  } else if (st === "drift" || st === "copy") {
+    openOverlay({ type: "diff", slug });
+    return;
+  } else if (st === "fm") {
+    openOverlay({ type: "inspect", slug });
+    return;
+  } else if (st === "broken") {
+    checkpoint(`repaired ${slug} in ${t.name}`);
+    setCell(slug, tid, "on");
+    toast(`Repaired dangling link in ${t.name}`, { mono: `${link} → ~/.agents/skills/${slug}  (old target ~/old-skills/${slug} missing)`, undo: true });
+  } else if (st === "shadow") {
+    toast(`Shadowed by plugin ${skillBySlug(slug).plugin}`, { mono: "the plugin's copy wins in this target; disable the plugin to use the canonical skill" });
+    return;
+  }
+  render();
+}
+
+function setColumn(tid, on) {
+  const t = targetById(tid);
+  checkpoint(`${on ? "enabled" : "disabled"} all in ${t.name}`);
+  let n = 0;
+  state.data.skills.forEach(s => {
+    const st = cellState(s.slug, tid);
+    if (on && st === "off") { setCell(s.slug, tid, s.fm && t.strict ? "fm" : "on"); n++; }
+    if (!on && st === "on") { setCell(s.slug, tid, "off"); n++; }
+  });
+  toast(`${on ? "Wired" : "Unwired"} ${n} skills in ${t.name}`, { undo: true });
+  render();
+}
+
+function cloneColumn(fromId, toId) {
+  const from = targetById(fromId), to = targetById(toId);
+  checkpoint(`cloned wiring ${from.name} → ${to.name}`);
+  state.data.skills.forEach(s => {
+    const src = cellState(s.slug, fromId), dst = cellState(s.slug, toId);
+    if (dst !== "on" && dst !== "off" && dst !== "fm") return;  // leave issue states for review
+    const wantOn = LOADED.has(src) || src === "fm";
+    setCell(s.slug, toId, wantOn ? (s.fm && to.strict ? "fm" : "on") : "off");
+  });
+  toast(`Cloned wiring from ${from.name} → ${to.name}`, { undo: true });
+  render();
+}
+
+function applyProfile(name) {
+  if (name === "__save") {
+    const label = window.prompt("Save current wiring as profile:", "My Profile");
+    if (label) {
+      state.profiles[label] = { snapshot: clone(state.data.wiring) };
+      state.profile = label;
+      toast(`Saved profile “${label}”`, { mono: "~/.agents/loadout/profiles.json" });
+    }
+    render(); return;
+  }
+  checkpoint(`switched profile → ${name}`);
+  state.profile = name;
+  const rule = state.profiles[name];
+  state.data.skills.forEach(s => state.data.targets.forEach(t => {
+    const st = cellState(s.slug, t.id);
+    if (st !== "on" && st !== "off") return;  // never touch issue states via profiles
+    let wantOn;
+    if (rule && rule.snapshot) wantOn = (rule.snapshot[s.slug] || {})[t.id] === "on";
+    else if (rule === "backend") wantOn = (t.id === "cp" || t.id === "cx" || t.id === "cw") && (s.tags.includes("backend") || s.tags.includes("core"));
+    else if (rule === "work") wantOn = t.id === "cp" ? false : (state.defaultWiring[s.slug] || {})[t.id] === "on";
+    else wantOn = (state.defaultWiring[s.slug] || {})[t.id] === "on";
+    setCell(s.slug, t.id, wantOn ? "on" : "off");
+  }));
+  toast(`Profile → ${name}`, { undo: true });
+  render();
+}
+
+function runScan() {
+  const btn = document.querySelector('[data-action="scan"]');
+  if (btn) btn.innerHTML = `<span class="scan-ms">scanning…</span>`;
+  setTimeout(() => {
+    toast("Scanned 64,200 directories in 19 ms · no new skills", { mono: "skipped TCC: ~/Pictures ~/Music ~/Library/Mail ~/.Trash" });
+    render();
+  }, 220);
+}
+
+function openOverlay(ov) {
+  state.overlay = ov;
+  state.menu = null;
+  if (ov.type === "diff") state.diff = { mode: "split", tab: "skill", choice: skillBySlug(ov.slug).drift ? "a" : "consolidate" };
+  if (ov.type === "inspect") state.inspect = { file: "SKILL.md", editing: false, showFix: skillBySlug(ov.slug).fm, edits: state.inspect.edits || {} };
+  if (ov.type === "add") state.add = { name: "", path: "", adapter: "Claude Code", env: "", initial: "clone", cloneFrom: "cp", error: "" };
+  if (state.view !== "board" && state.view !== "host") state.view = "board";
+  render();
+}
+function closeOverlay() { state.overlay = null; render(); }
+
+/* ------------------------------------------------------------------ */
+/* Toasts                                                             */
+/* ------------------------------------------------------------------ */
+
+let toastTimer = null;
+function toast(text, opts = {}) {
+  const root = document.getElementById("toast-root");
+  root.innerHTML = `<div class="toast" role="status"><div><div>${esc(text)}</div>${opts.mono ? `<div class="mono">${esc(opts.mono)}</div>` : ""}</div>${opts.undo ? `<button data-action="undo">Undo <span style="opacity:.6">u</span></button>` : ""}</div>`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { root.innerHTML = ""; }, 5200);
+}
+
+/* ------------------------------------------------------------------ */
+/* Artboard definitions                                               */
+/* ------------------------------------------------------------------ */
+
+const ARTBOARDS = [
+  { n: 1, title: "First-Run Scan & Consolidation", desc: "19 ms laptop scan, dry-run plan, reversible quarantine", go: () => { state.view = "wizard"; state.overlay = null; } },
+  { n: 2, title: "Patchbay Switchboard", desc: "Skills × target matrix, the daily screen", go: () => { state.view = "board"; state.overlay = null; } },
+  { n: 3, title: "Drift Diff Resolver", desc: "playwright-e2e: Claude vs ZCode import", go: () => { state.view = "board"; openOverlay({ type: "diff", slug: "playwright-e2e" }); } },
+  { n: 4, title: "Add Target / Account", desc: "Sibling profiles + custom skill paths", go: () => { state.view = "board"; openOverlay({ type: "add" }); } },
+  { n: 5, title: "Inspector & Frontmatter Fix", desc: "rust-perf-audit dropped by Antigravity", go: () => { state.view = "board"; openOverlay({ type: "inspect", slug: "rust-perf-audit" }); } },
+  { n: 6, title: "T3 Code Plugin View", desc: "Embedded drawer + $ composer picker", go: () => { state.view = "host"; state.overlay = null; } },
+  { n: 7, title: "Terminal UI · loadout tui", desc: "Same matrix over SSH, 80×24 / 120×36", go: () => { state.view = "tui"; state.overlay = null; } },
+];
+
+const HEAD_INFO = {
+  1: { p: "Run `loadout ui` on a messy laptop. Nothing moves until you approve the dry run.", links: [[2, "Skip to switchboard →"]] },
+  2: { p: "Click jacks to wire/unwire. Amber/rose jacks open the resolver, inspector, or repair.", links: [[3, "Drift ⇄"], [4, "+ Target"], [5, "Inspector"]] },
+  3: { p: "Byte-identical copies consolidate silently; edited forks need an explicit choice.", links: [[2, "← Switchboard"]] },
+  4: { p: "Adapter kind (validation rules) is separate from target instance (a path).", links: [[2, "← Switchboard"]] },
+  5: { p: "Live readlink map, file viewer, and the strict-frontmatter auto-fix.", links: [[2, "← Switchboard"]] },
+  6: { p: "<loadout-switchboard mode=\"embedded\"> inside the host IDE, sharing the same state.", links: [[2, "Standalone ↗"], [7, "TUI →"]] },
+  7: { p: "Focus the terminal and drive it with j/k/h/l, Space, d, u. Shares state with the web UI.", links: [[2, "← Web UI"]] },
+};
+
+function activeArtboard() {
+  if (state.view === "wizard") return 1;
+  if (state.view === "host") return 6;
+  if (state.view === "tui") return 7;
+  if (state.overlay?.type === "diff") return 3;
+  if (state.overlay?.type === "add") return 4;
+  if (state.overlay?.type === "inspect") return 5;
+  return 2;
+}
+
+function goArtboard(n) {
+  const ab = ARTBOARDS.find(a => a.n === n);
+  if (!ab) return;
+  state.menu = null;
+  ab.go();
+  render();
+}
+
+/* ------------------------------------------------------------------ */
+/* Render: shell                                                      */
+/* ------------------------------------------------------------------ */
+
+function render() {
+  const active = document.activeElement;
+  const focusId = active && active.id;
+  const selStart = active && "selectionStart" in active ? active.selectionStart : null;
+
+  const cur = activeArtboard();
+  document.getElementById("ab-list").innerHTML = ARTBOARDS.map(a =>
+    `<li><button data-action="go" data-n="${a.n}" aria-current="${a.n === cur}"><span class="n">0${a.n}</span><span class="t">${esc(a.title)}</span><span class="d">${esc(a.desc)}</span></button></li>`).join("");
+
+  const ab = ARTBOARDS.find(a => a.n === cur), info = HEAD_INFO[cur];
+  document.getElementById("ab-head").innerHTML =
+    `<span class="num">ARTBOARD 0${cur}</span><h1>${esc(ab.title)}</h1><p>${esc(info.p)}</p>
+     <div class="flow-links">${info.links.map(([n, l]) => `<button class="btn sm ghost" data-action="go" data-n="${n}">${esc(l)}</button>`).join("")}</div>`;
+
+  const board = document.getElementById("artboard");
+  if (state.view !== lastRenderedView) { board.scrollTop = 0; lastRenderedView = state.view; }
+  if (state.view === "wizard") board.innerHTML = renderWizard();
+  else if (state.view === "board") board.innerHTML = renderBoard();
+  else if (state.view === "host") board.innerHTML = renderHost();
+  else if (state.view === "tui") board.innerHTML = renderTui();
+
+  // Sticky matrix headers sit under the top bar, whose height changes when it wraps.
+  const topbar = board.querySelector(".topbar");
+  if (topbar) board.style.setProperty("--topbar-h", `${topbar.offsetHeight}px`);
+
+  document.getElementById("overlay-root").innerHTML = state.view === "board" ? renderOverlay() : "";
+  document.getElementById("menu-root").innerHTML = renderMenu();
+  document.getElementById("help-root").innerHTML = state.help ? renderHelp() : "";
+
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el) { el.focus(); if (selStart !== null && "setSelectionRange" in el) { try { el.setSelectionRange(selStart, selStart); } catch (_) { /* non-text input */ } } }
+  }
+}
+
+function renderHelp() {
+  const rows = [["/", "search skills"], ["j / k", "move row"], ["h / l", "move target"], ["Space", "toggle wire"], ["Enter", "open inspector"], ["d", "diff / resolve"], ["u", "undo last action"], ["1 … 7", "jump to artboard"], ["Esc", "close drawer / modal"]];
+  return `<div class="card help" role="dialog" aria-label="Keyboard shortcuts"><p class="section-label">Keyboard</p>${rows.map(([k, v]) => `<div><span>${v}</span><kbd>${k}</kbd></div>`).join("")}</div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Artboard 1: First-run wizard                                       */
+/* ------------------------------------------------------------------ */
+
+function buildPlan() {
+  const Q = "~/.agents/quarantine/2026-11-27T09-14-02";
+  return [
+    { id: 1, op: "MOVE", src: "~/.claude/skills/stripe-webhooks", dst: "~/.agents/skills/stripe-webhooks", note: "canonical (sha256 9f2c…e1)", on: true },
+    { id: 2, op: "LINK", src: "~/.claude/skills/stripe-webhooks", dst: "→ ~/.agents/skills/stripe-webhooks", note: "symlink replaces folder", on: true },
+    { id: 3, op: "QUARANTINE", src: "~/.claude-second/skills/stripe-webhooks", dst: `${Q}/claude-second/stripe-webhooks`, note: "byte-identical", on: true },
+    { id: 4, op: "LINK", src: "~/.claude-second/skills/stripe-webhooks", dst: "→ ~/.agents/skills/stripe-webhooks", note: "", on: true },
+    { id: 5, op: "QUARANTINE", src: "~/dev/saas/.claude/skills/stripe-webhooks", dst: `${Q}/repo-saas/stripe-webhooks`, note: "byte-identical · repo copy", on: true },
+    { id: 6, op: "MOVE", src: "~/.claude/skills/playwright-e2e", dst: "~/.agents/skills/playwright-e2e", note: "4 files", on: true },
+    { id: 7, op: "QUARANTINE", src: "~/.claude-second/skills/playwright-e2e", dst: `${Q}/claude-second/playwright-e2e`, note: "identical to ~/.claude copy", on: true },
+    { id: 8, op: "REVIEW", src: "~/.zcode/skills/playwright-e2e", dst: "left in place: drifted (ZCode Import, 3w ago)", note: "resolve in diff view", on: false, locked: true },
+    { id: 9, op: "REPAIR", src: "~/.codex/skills/legacy-migration", dst: "→ ~/.agents/skills/legacy-migration", note: "was → ~/old-skills/legacy-migration (missing)", on: true },
+    { id: 10, op: "MOVE", src: "~/.claude/skills/rust-perf-audit", dst: "~/.agents/skills/rust-perf-audit", note: "⚠ frontmatter: no name", on: true },
+    { id: 11, op: "MOVE", src: "~/.codex/skills/docker-slim-images", dst: "~/.agents/skills/docker-slim-images", note: "+ 14 more single-copy skills", on: true },
+  ];
+}
+
+const REPO_SKILLS = [
+  { slug: "deploy-prod", path: "~/dev/my-app/.claude/skills/deploy-prod", note: "references repo scripts/", choice: "keep" },
+  { slug: "api-contract-tests", path: "~/dev/saas/.claude/skills/api-contract-tests", note: "uses saas test fixtures", choice: "keep" },
+  { slug: "terraform-plan-review", path: "~/dev/infra/.opencode/skills/terraform-plan-review", note: "generic, useful everywhere", choice: "promote" },
+  { slug: "ios-crashlog-symbolicate", path: "~/dev/mobile/.claude/skills/ios-crashlog-symbolicate", note: "generic, useful everywhere", choice: "promote" },
+];
+
+function renderWizard() {
+  const w = state.wizard;
+  const steps = ["Scan summary", "Dry-run plan", "Apply & receipt"];
+  return `<div class="wiz">
+    <div class="steps">${steps.map((s, i) => `<button class="step ${w.step > i + 1 ? "done" : ""}" data-action="wiz-step" data-step="${i + 1}" aria-current="${w.step === i + 1}"><i>${w.step > i + 1 ? "✓" : i + 1}</i>${s}</button>`).join("")}</div>
+    ${w.step === 1 ? wizScan() : w.step === 2 ? wizPlan() : wizApply()}
+  </div>`;
+}
+
+function wizScan() {
+  const roots = [
+    ["~/.claude/skills", "22 skills", ""],
+    ["~/.claude-second/skills", "11 skills", `<span class="badge am">auto-detected sibling · CLAUDE_CONFIG_DIR</span>`],
+    ["~/.codex/skills", "12 skills", `<span class="badge ro">1 broken</span>`],
+    ["~/.gemini/config/skills", "7 skills", `<span class="badge ro">strict</span>`],
+    ["~/.config/opencode/skills", "8 skills", ""],
+    ["~/.zcode/skills", "6 skills", `<span class="badge am">ZCode Import copies</span>`],
+    ["~/tools/release-bot/skills", "5 skills", `<span class="badge">custom</span>`],
+  ];
+  const repos = [
+    ["~/dev/my-app", ".claude/skills · 1"], ["~/dev/saas", ".claude/skills · 2"],
+    ["~/dev/infra", ".opencode/skills · 1"], ["~/dev/mobile", ".claude/skills · 1"],
+  ];
+  return `
+    <div class="card scanline">
+      <div class="big">19<small> ms</small></div>
+      <div><div style="font-weight:600">Scanned 64,200 directories · macOS TCC-safe</div>
+      <div class="mono faint">skipped ~/Pictures ~/Music ~/Movies ~/Library/Mail ~/Library/Messages ~/.Trash  ·  0 permission prompts</div></div>
+      <div class="spacer"></div>
+      <button class="btn primary" data-action="wiz-step" data-step="2">Review consolidation plan →</button>
+    </div>
+    <div class="stats">
+      <div class="card stat"><div class="v">42</div><div class="l">unique skills</div><div class="s">7 targets · 4 git repos</div></div>
+      <div class="card stat"><div class="v am">11</div><div class="l">exact duplicates</div><div class="s">340 KB redundant copies</div></div>
+      <div class="card stat"><div class="v am">3</div><div class="l">drifted copies</div><div class="s">content differs across tools</div></div>
+      <div class="card stat"><div class="v ro">2</div><div class="l">broken symlinks</div><div class="s">dangling targets</div></div>
+      <div class="card stat"><div class="v ro">4</div><div class="l">frontmatter warnings</div><div class="s">Antigravity drops these</div></div>
+    </div>
+    <div class="roots">
+      <div class="card"><div style="padding:12px 14px 4px"><p class="section-label">Global roots</p></div>
+        <div class="rootlist">${roots.map(([p, n, b]) => `<div><span>${p} <span class="faint">· ${n}</span></span><span>${b}</span></div>`).join("")}</div></div>
+      <div class="card"><div style="padding:12px 14px 4px"><p class="section-label">Project-local (git repos)</p></div>
+        <div class="rootlist">${repos.map(([p, n]) => `<div><span>${p}</span><span class="faint">${n}</span></div>`).join("")}</div>
+        <div style="padding:12px 14px" class="hint">Repo skills stay project-local by default. You choose per item in the next step.</div></div>
+    </div>`;
+}
+
+function wizPlan() {
+  const plan = state.wizard.plan;
+  const active = plan.filter(p => p.on);
+  const count = k => active.filter(p => p.op === k).length;
+  return `
+    <div class="card safety"><span>dry run: nothing has changed yet</span><span>superseded copies go to ~/.agents/quarantine/, never rm -rf</span><span>loadout undo restores everything</span><span>repo skills default to project-local</span></div>
+    <div style="height:12px"></div>
+    <div class="card" style="overflow:auto">
+      <table class="plan-table">
+        <thead><tr><th style="width:34px"></th><th style="width:100px">Op</th><th>Source</th><th>Destination</th><th>Note</th></tr></thead>
+        <tbody>${plan.map(p => `<tr class="${p.on ? "" : "off"}">
+          <td><input type="checkbox" aria-label="Include ${esc(p.src)}" data-action="plan-toggle" data-id="${p.id}" ${p.on ? "checked" : ""} ${p.locked ? "disabled" : ""}></td>
+          <td><span class="opk ${p.op}">${p.op}</span></td>
+          <td class="p">${esc(p.src)}</td><td class="p dim">${esc(p.dst)}</td><td class="faint" style="font-size:11.5px">${esc(p.note)}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card" style="padding:12px 14px">
+      <p class="section-label">Project-local skills found in git repos</p>
+      ${REPO_SKILLS.map((r, i) => `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <div style="flex:1;min-width:240px"><div class="mono" style="font-weight:600">${r.slug}</div><div class="mono faint">${r.path} <span class="dim">· ${r.note}</span></div></div>
+        <div class="seg" role="group" aria-label="${r.slug} placement">
+          <button data-action="repo-choice" data-i="${i}" data-v="keep" aria-pressed="${r.choice === "keep"}">Keep Project-Local</button>
+          <button data-action="repo-choice" data-i="${i}" data-v="promote" aria-pressed="${r.choice === "promote"}">Promote to Global + Symlink</button>
+        </div></div>`).join("")}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap">
+      <span class="mono dim">${count("MOVE")} moves · ${count("LINK") + count("REPAIR")} symlinks · ${count("QUARANTINE")} quarantined · ${REPO_SKILLS.filter(r => r.choice === "promote").length} promoted · <span class="em">0 deletions</span></span>
+      <div class="spacer"></div>
+      <button class="btn" data-action="wiz-step" data-step="1">← Back</button>
+      <button class="btn primary" data-action="wiz-apply">Consolidate to ~/.agents/skills</button>
+    </div>`;
+}
+
+function wizApply() {
+  const w = state.wizard;
+  return `<div class="log" aria-live="polite">${w.log.map(l => `<div>${l}</div>`).join("")}${w.applied ? "" : `<div class="faint">▌</div>`}</div>
+    ${w.applied ? `<div class="card" style="padding:14px;margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1"><div style="font-weight:600">Consolidated in 42 ms. Your laptop has one source of truth.</div>
+      <div class="mono faint">receipt ~/.agents/quarantine/2026-11-27T09-14-02/receipt.json · run <span class="dim">loadout undo</span> to roll back</div></div>
+      <button class="btn" data-action="undo">Undo consolidation</button>
+      <button class="btn primary" data-action="go" data-n="2">Open Switchboard →</button></div>` : ""}`;
+}
+
+function applyWizard() {
+  const w = state.wizard;
+  w.step = 3; w.log = []; w.applied = false;
+  checkpoint("consolidation");
+  const lines = [];
+  w.plan.filter(p => p.on).forEach(p => {
+    const cls = { MOVE: "sk", LINK: "em", QUARANTINE: "am", REPAIR: "ro" }[p.op] || "dim";
+    lines.push(`<span class="${cls}">${p.op.padEnd(10)}</span> ${esc(p.src)} <span class="faint">${esc(p.dst)}</span>`);
+  });
+  REPO_SKILLS.filter(r => r.choice === "promote").forEach(r =>
+    lines.push(`<span class="sk">PROMOTE   </span> ${esc(r.path)} <span class="faint">→ ~/.agents/skills/${r.slug} (+ symlink back)</span>`));
+  lines.push(`<span class="em">✓ done</span> <span class="faint">verified ${lines.length} operations with readlink + sha256</span>`);
+
+  // Mutate the shared catalog to reflect the chosen operations.
+  const plan = Object.fromEntries(w.plan.map(p => [p.id, p.on]));
+  const stripe = skillBySlug("stripe-webhooks");
+  if (plan[1] && plan[3]) { setCell("stripe-webhooks", "cp", "on"); setCell("stripe-webhooks", "cw", "on"); stripe.dupes = 0; state.quarantineCount += 2; }
+  if (plan[9]) setCell("legacy-migration", "cx", "on");
+  if (plan[7]) state.quarantineCount += 1;
+  REPO_SKILLS.forEach(r => { const s = skillBySlug(r.slug); if (s && r.choice === "promote") s.repo = null; });
+
+  let i = 0;
+  const tick = () => {
+    w.log.push(lines[i++]);
+    if (i >= lines.length) w.applied = true;
+    if (state.view === "wizard") render();
+    if (i < lines.length) setTimeout(tick, 70);
+  };
+  tick();
+}
+
+/* ------------------------------------------------------------------ */
+/* Artboard 2: Switchboard                                            */
+/* ------------------------------------------------------------------ */
+
+const ICON_SEARCH = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg>`;
+
+function renderBoard() {
+  const rows = visibleSkills();
+  const targets = state.data.targets;
+  clampCursor(rows.length, targets.length);
+  const last = state.undo[state.undo.length - 1];
+
+  const pills = FILTERS.map(f => {
+    const n = state.data.skills.filter(f.test).length;
+    return `<button class="pill" data-action="filter" data-f="${f.id}" aria-pressed="${state.filter === f.id}">${f.dot ? `<span class="dot" style="background:${f.dot}"></span>` : ""}${f.label} <b>${n}</b></button>`;
+  }).join("");
+
+  const profileOpts = Object.keys(state.profiles).map(p => `<option ${p === state.profile ? "selected" : ""}>${esc(p)}</option>`).join("");
+
+  // Vendor group header (Claude Personal + Work sit together).
+  const groups = [];
+  targets.forEach(t => {
+    const g = groups[groups.length - 1];
+    if (g && g.vendor === t.vendor) g.span++; else groups.push({ vendor: t.vendor, span: 1 });
+  });
+
+  return `
+  <div class="topbar">
+    <div class="search">${ICON_SEARCH}<input id="search" class="input" placeholder="Search skills, tags, paths" value="${esc(state.query)}" data-input="query" aria-label="Search skills"><kbd>/</kbd></div>
+    <div class="pills" role="group" aria-label="Filters">${pills}</div>
+    <div class="spacer"></div>
+    <label class="profile">Profile <select class="select" id="profile" data-change="profile" aria-label="Active profile">${profileOpts}<option value="__save">+ Save current wiring as profile…</option></select></label>
+    <button class="btn" data-action="scan" title="Rescan laptop">Scan <span class="scan-ms">19ms</span></button>
+    ${last ? `<div class="undo-pill"><span>↶ ${esc(last.label)}</span><button class="btn sm" data-action="undo">Undo <kbd>u</kbd></button></div>`
+      : `<div class="undo-pill"><span class="faint">${state.quarantineCount ? `${state.quarantineCount} in quarantine` : "No undo history"}</span></div>`}
+  </div>
+  <div class="matrix-wrap">
+    <table class="matrix" aria-label="Skill wiring matrix">
+      <thead>
+        <tr class="groups"><th class="skill-col"></th>${groups.map(g => `<th class="g ${g.vendor === "Claude" ? "claude" : ""}" colspan="${g.span}"><span>${esc(g.vendor)}${g.span > 1 ? ` · ${g.span} accounts` : ""}</span></th>`).join("")}<th></th></tr>
+        <tr class="cols">
+          <th class="skill-col" style="text-align:left;padding:8px 12px;vertical-align:bottom"><span class="section-label" style="margin:0">~/.agents/skills · ${state.data.skills.length} canonical</span></th>
+          ${targets.map((t, ci) => { const b = budget(t.id); return `<th class="colhead ${ci === state.cursor.c ? "cursor" : ""}" scope="col">
+            <span class="name"><span class="glyph">${t.glyph}</span><span style="overflow:hidden;text-overflow:ellipsis">${esc(t.name)}</span></span>
+            <span class="path" title="${esc(t.path)}">${esc(t.path.replace(/\/skills$/, ""))}${t.strict ? " · strict" : ""}</span>
+            <div class="meter ${b.hot ? "hot" : ""}"><i style="width:${Math.min(100, b.tok / BUDGET_SCALE * 100)}%"></i></div>
+            <div class="budget ${b.hot ? "hot" : ""}" title="${b.hot ? "High context noise: too many skill descriptions per turn" : ""}">${b.count} active · ~${fmtTok(b.tok)} tok${b.hot ? " ⚠" : ""}</div>
+            <button class="menu-btn" data-action="colmenu" data-t="${t.id}" aria-label="${esc(t.name)} menu">⋯</button></th>`; }).join("")}
+          <th class="addcol"><button data-action="add-target">+ Add Target</button></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.length ? rows.map((s, ri) => renderRow(s, ri, targets)).join("") : `<tr class="empty-row"><td colspan="${targets.length + 2}">No skills match. <button class="btn sm" data-action="clear-filters">Clear filters</button></td></tr>`}
+      </tbody>
+    </table>
+  </div>
+  <div class="legend">
+    ${["on", "off", "copy", "drift", "fm", "shadow", "broken"].map(st => `<span><span class="jack" data-s="${st}"><span class="j">${STATE_GLYPH[st]}</span></span>${{ on: "Wired symlink", off: "Unwired", copy: "Unmanaged physical copy", drift: "Drifted copy", fm: "Frontmatter incompatible", shadow: "Shadowed by plugin", broken: "Broken symlink" }[st]}</span>`).join("")}
+    <span class="keys"><kbd>/</kbd> search <kbd>j</kbd><kbd>k</kbd><kbd>h</kbd><kbd>l</kbd> move <kbd>Space</kbd> toggle <kbd>d</kbd> diff <kbd>u</kbd> undo</span>
+  </div>`;
+}
+
+function renderRow(s, ri, targets) {
+  const iss = skillIssues(s);
+  const badges = [`<span class="badge">~${s.tok} tok</span>`];
+  if (s.scripts) badges.push(`<span class="badge">scripts/</span>`);
+  if (s.refs) badges.push(`<span class="badge">references/</span>`);
+  if (s.repo) badges.push(`<span class="badge sk">repo ${esc(s.repo)}</span>`);
+  if (iss.fm) badges.push(`<span class="badge ro btnish" data-action="inspect" data-slug="${s.slug}">⚠ Frontmatter</span>`);
+  if (iss.drift) badges.push(`<span class="badge am btnish" data-action="diff" data-slug="${s.slug}">⇄ drifted</span>`);
+  if (iss.dupes) badges.push(`<span class="badge am btnish" data-action="diff" data-slug="${s.slug}">${s.dupes || 2} exact duplicates</span>`);
+  if (iss.broken) badges.push(`<span class="badge ro">broken link</span>`);
+  if (s.plugin) badges.push(`<span class="badge sk">plugin shadow</span>`);
+  const cursorRow = ri === state.cursor.r && state.view === "board";
+  return `<tr class="${cursorRow ? "cursor-row" : ""} ${state.selected === s.slug ? "selected" : ""}">
+    <td class="skill-col skill-cell" data-action="inspect" data-slug="${s.slug}">
+      <div class="row1"><span class="slug">${esc(s.slug)}</span></div>
+      <div class="desc" title="${esc(s.desc)}">${esc(s.desc)}</div>
+      <div class="badges">${badges.join("")}</div>
+    </td>
+    ${targets.map((t, ci) => { const st = cellState(s.slug, t.id); const cur = cursorRow && ci === state.cursor.c;
+      return `<td class="cell ${ci === state.cursor.c ? "cursor-col" : ""}"><button class="jack ${cur ? "cur" : ""}" data-s="${st}" data-action="cell" data-slug="${s.slug}" data-t="${t.id}" aria-label="${esc(s.slug)} in ${esc(t.name)}: ${STATE_LABEL[st]}"><span class="j">${STATE_GLYPH[st]}</span><span class="lbl">${STATE_LABEL[st]}</span></button></td>`; }).join("")}
+    <td></td>
+  </tr>`;
+}
+
+function clampCursor(nRows, nCols) {
+  state.cursor.r = Math.max(0, Math.min(state.cursor.r, nRows - 1));
+  state.cursor.c = Math.max(0, Math.min(state.cursor.c, nCols - 1));
+}
+
+function renderMenu() {
+  if (!state.menu) return "";
+  const t = targetById(state.menu.t);
+  const others = state.data.targets.filter(o => o.id !== t.id);
+  return `<div class="menu" style="left:${state.menu.x}px;top:${state.menu.y}px" role="menu">
+    <button data-action="col-all" data-t="${t.id}" data-on="1">Enable all</button>
+    <button data-action="col-all" data-t="${t.id}" data-on="0">Disable all</button>
+    <hr><div class="faint" style="font-size:11px;padding:4px 10px">Clone wiring from…</div>
+    ${others.map(o => `<button class="sub" data-action="col-clone" data-from="${o.id}" data-t="${t.id}">${esc(o.name)}</button>`).join("")}
+    <hr>
+    <button data-action="col-open" data-t="${t.id}">Open folder <span class="faint mono" style="margin-left:auto">${esc(t.path)}</span></button>
+    <button data-action="col-remove" data-t="${t.id}" class="${t.custom ? "danger" : ""}" ${t.custom ? "" : "disabled style='opacity:.4'"}>${t.custom ? "Remove target…" : "Remove (built-in target)"}</button>
+  </div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Overlays                                                           */
+/* ------------------------------------------------------------------ */
+
+function renderOverlay() {
+  const ov = state.overlay;
+  if (!ov) return "";
+  const scrim = `<div class="scrim" data-action="close"></div>`;
+  if (ov.type === "diff") return scrim + renderResolver(ov.slug);
+  if (ov.type === "add") return scrim + renderAddTarget();
+  if (ov.type === "inspect") return scrim + renderInspector(ov.slug);
+  return "";
+}
+
+/* Artboard 3: Drift / duplicate resolver */
+
+const PW_DIFF = [
+  ["---", "---", "same"],
+  ["name: playwright-e2e", "name: playwright-e2e", "same"],
+  ["description: Write and debug Playwright end-to-end tests with trace-viewer triage", "description: Write Playwright tests", "mod"],
+  ["---", "---", "same"],
+  ["# Playwright E2E", "# Playwright E2E", "same"],
+  ["Use when writing or fixing browser tests.", "Use when writing or fixing browser tests.", "same"],
+  ["## Workflow", "## Workflow", "same"],
+  ["1. Run `npx playwright test --trace on-first-retry`", "1. Run `npx playwright test`", "mod"],
+  ["2. Open failing traces with `scripts/open-trace.sh`", null, "add"],
+  ["3. Prefer `getByRole` locators over CSS selectors.", "2. Prefer `getByRole` locators over CSS selectors.", "mod"],
+  ["4. Never use `waitForTimeout`; wait on web-first assertions.", "3. Avoid hard waits where possible.", "mod"],
+  ["", "", "same"],
+  ["## Flaky tests", null, "add"],
+  ["- Re-run with `--repeat-each=20` to confirm the flake.", null, "add"],
+  ["- Attach the trace zip to the PR.", null, "add"],
+  ["", "", "same"],
+  ["See references/locators.md for patterns.", "See references/locators.md for patterns.", "same"],
+];
+
+function renderResolver(slug) {
+  const s = skillBySlug(slug);
+  const d = state.diff;
+  if (!s.drift) return renderDupeResolver(s);
+
+  const tabs = `<div class="seg"><button data-action="diff-tab" data-v="skill" aria-pressed="${d.tab === "skill"}">SKILL.md</button><button data-action="diff-tab" data-v="tree" aria-pressed="${d.tab === "tree"}">File tree</button></div>
+    <div class="seg"><button data-action="diff-mode" data-v="split" aria-pressed="${d.mode === "split"}">Side by side</button><button data-action="diff-mode" data-v="unified" aria-pressed="${d.mode === "unified"}">Unified</button></div>
+    <span class="mono faint" style="margin-left:auto"><span class="em">+6</span> <span class="ro">−4</span> · 1 file added in A</span>`;
+
+  let body;
+  if (d.tab === "tree") {
+    const files = [["SKILL.md", "modified 2d", "modified 3w"], ["scripts/open-trace.sh", "added", "—"], ["scripts/codegen.sh", "identical", "identical"], ["references/locators.md", "identical", "identical"]];
+    body = `<div class="diff tree"><div class="tree-row h"><span>path</span><span>A · claude</span><span>B · zcode</span></div>${files.map(([p, a, b]) => `<div class="tree-row"><span>${p}</span><span class="${a === "added" ? "em" : a.startsWith("mod") ? "am" : "faint"}">${a}</span><span class="${b === "—" ? "ro" : b.startsWith("mod") ? "am" : "faint"}">${b}</span></div>`).join("")}</div>`;
+  } else if (d.mode === "split") {
+    let la = 0, lb = 0;
+    body = `<div class="diff"><div class="diff-head"><div>A · ~/.claude/skills/playwright-e2e/SKILL.md</div><div>B · ~/.zcode/skills/playwright-e2e/SKILL.md</div></div>
+      ${PW_DIFF.map(([a, b, k]) => {
+        const left = a === null ? `<div class="blank"><span class="ln"></span><span></span></div>` : `<div class="${k === "add" || k === "mod" ? "add" : ""}"><span class="ln">${++la}</span><span>${esc(a)}</span></div>`;
+        const right = b === null ? `<div class="blank"><span class="ln"></span><span></span></div>` : `<div class="${k === "mod" ? "del" : ""}"><span class="ln">${++lb}</span><span>${esc(b)}</span></div>`;
+        return `<div class="diff-row">${left}${right}</div>`;
+      }).join("")}</div>`;
+  } else {
+    let la = 0, lb = 0; const out = [];
+    PW_DIFF.forEach(([a, b, k]) => {
+      if (k === "same") { la++; lb++; out.push(`<div class="u-line"><span class="ln">${lb}</span><span class="ln">${la}</span><span> </span><span>${esc(a)}</span></div>`); return; }
+      if (b !== null) { lb++; out.push(`<div class="u-line del"><span class="ln">${lb}</span><span class="ln"></span><span class="ro">−</span><span>${esc(b)}</span></div>`); }
+      if (a !== null) { la++; out.push(`<div class="u-line add"><span class="ln"></span><span class="ln">${la}</span><span class="em">+</span><span>${esc(a)}</span></div>`); }
+    });
+    body = `<div class="diff unified"><div class="diff-head" style="grid-template-columns:1fr"><div>B → A · SKILL.md</div></div>${out.join("")}</div>`;
+  }
+
+  const choices = [
+    ["a", "Keep A as canonical & wire all", "Move A to ~/.agents/skills, quarantine B & C"],
+    ["b", "Keep B as canonical", "ZCode's older copy wins; quarantine A & C"],
+    ["both", "Keep both", "Rename B to playwright-e2e-zcode"],
+  ];
+  return `<aside class="drawer wide" role="dialog" aria-label="Resolve ${esc(slug)}">
+    <div class="ov-head"><span class="badge am">⇄ drifted</span><h2 class="mono">${esc(slug)}</h2><span class="faint">3 instances · 2 distinct contents</span><button class="btn ghost x" data-action="close" aria-label="Close">Esc ✕</button></div>
+    <div class="ov-body">
+      <div class="instances">
+        <div class="inst a"><span class="tag">A</span> <span class="badge em">newest</span><div class="p">~/.claude/skills/playwright-e2e</div><div class="faint" style="font-size:11.5px">Modified 2 days ago · 4 files · sha a41f…09</div></div>
+        <div class="inst b"><span class="tag">B</span> <span class="badge am">ZCode Import</span><div class="p">~/.zcode/skills/playwright-e2e</div><div class="faint" style="font-size:11.5px">Copied 3 weeks ago by ZCode Import · 3 files · sha 77c0…3e</div></div>
+        <div class="inst"><span class="tag">C</span> <span class="badge">= A</span><div class="p">~/.claude-second/skills/playwright-e2e</div><div class="faint" style="font-size:11.5px">Exact match with A · 4 files</div></div>
+      </div>
+      <div class="diff-tabs">${tabs}</div>
+      ${body}
+    </div>
+    <div class="ov-foot" style="display:block">
+      <div class="choices" role="radiogroup" aria-label="Resolution">${choices.map(([v, t, sub]) => `<button class="choice" role="radio" data-action="diff-choice" data-v="${v}" aria-pressed="${d.choice === v}" aria-checked="${d.choice === v}"><b>${t}</b><span>${sub}</span></button>`).join("")}</div>
+      ${renderOps(slug, d.choice)}
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center"><span class="hint">Nothing is deleted. Undo restores every path.</span><div class="spacer"></div><button class="btn" data-action="close">Cancel</button><button class="btn primary" data-action="resolve" data-slug="${slug}">Apply resolution</button></div>
+    </div>
+  </aside>`;
+}
+
+function renderOps(slug, choice) {
+  const Q = `~/.agents/quarantine/${"2026-11-27T09-31-12"}`;
+  const ops = {
+    a: [["MOVE", "~/.claude/skills/playwright-e2e → ~/.agents/skills/playwright-e2e"], ["QUARANTINE", `~/.zcode/skills/playwright-e2e → ${Q}/zcode/`], ["QUARANTINE", `~/.claude-second/skills/playwright-e2e → ${Q}/claude-second/`], ["LINK", "~/.claude, ~/.claude-second, ~/.zcode → canonical"]],
+    b: [["MOVE", "~/.zcode/skills/playwright-e2e → ~/.agents/skills/playwright-e2e"], ["QUARANTINE", `~/.claude/skills/playwright-e2e → ${Q}/claude/`], ["QUARANTINE", `~/.claude-second/skills/playwright-e2e → ${Q}/claude-second/`], ["LINK", "~/.claude, ~/.claude-second, ~/.zcode → canonical"]],
+    both: [["MOVE", "~/.claude/skills/playwright-e2e → ~/.agents/skills/playwright-e2e"], ["MOVE", "~/.zcode/skills/playwright-e2e → ~/.agents/skills/playwright-e2e-zcode"], ["EDIT", "playwright-e2e-zcode/SKILL.md  name: playwright-e2e-zcode"], ["LINK", "~/.zcode/skills/playwright-e2e-zcode → canonical fork"]],
+    consolidate: [["MOVE", `~/.claude/skills/${slug} → ~/.agents/skills/${slug}`], ["QUARANTINE", `~/.claude-second/skills/${slug} → ${Q}/claude-second/`], ["QUARANTINE", `~/dev/saas/.claude/skills/${slug} → ${Q}/repo-saas/`], ["LINK", "~/.claude, ~/.claude-second → canonical"]],
+  }[choice];
+  const col = { MOVE: "sk", QUARANTINE: "am", LINK: "em", EDIT: "dim" };
+  return `<div class="ops">${ops.map(([k, v]) => `<div class="op"><span class="op-k ${col[k]}">${k}</span><span>${esc(v)}</span></div>`).join("")}</div>`;
+}
+
+function renderDupeResolver(s) {
+  const copies = [["~/.claude/skills/" + s.slug, "Claude (Personal)"], ["~/.claude-second/skills/" + s.slug, "Claude (Work)"], ["~/dev/saas/.claude/skills/" + s.slug, "repo · ~/dev/saas"]];
+  return `<div class="modal" role="dialog" aria-label="Consolidate ${esc(s.slug)}">
+    <div class="ov-head"><span class="badge am">${s.dupes || copies.length} exact duplicates</span><h2 class="mono">${esc(s.slug)}</h2><button class="btn ghost x" data-action="close">Esc ✕</button></div>
+    <div class="ov-body">
+      <p class="dim" style="margin-top:0">All copies are byte-identical (SHA-256 Merkle hash <span class="mono">9f2c…e1</span>, 3 files, 12 KB). No content choice is needed.</p>
+      <div class="linkmap">${copies.map(([p, l]) => `<div><span class="am">▣</span><span>${esc(p)}</span><span class="faint">${esc(l)}</span></div>`).join("")}</div>
+      ${renderOps(s.slug, "consolidate")}
+    </div>
+    <div class="ov-foot"><span class="hint">Reversible with loadout undo.</span><div class="spacer"></div><button class="btn" data-action="close">Cancel</button><button class="btn primary" data-action="resolve" data-slug="${s.slug}">Consolidate & wire all</button></div>
+  </div>`;
+}
+
+function resolve(slug) {
+  const s = skillBySlug(slug);
+  const choice = s.drift ? state.diff.choice : "consolidate";
+  checkpoint(`resolved ${slug} (${choice === "both" ? "kept both" : choice === "consolidate" ? "consolidated" : `kept ${choice.toUpperCase()}`})`);
+  if (choice === "consolidate") {
+    state.data.targets.forEach(t => { if (cellState(slug, t.id) === "copy") setCell(slug, t.id, "on"); });
+    s.dupes = 0; state.quarantineCount += 2;
+    toast(`Consolidated ${slug} into ~/.agents/skills`, { mono: "2 copies → ~/.agents/quarantine/2026-11-27T09-31-12/", undo: true });
+  } else if (choice === "both") {
+    setCell(slug, "zc", "off");
+    s.drift = false;
+    const fork = { slug: `${slug}-zcode`, desc: "Fork imported by ZCode 3 weeks ago (kept as a distinct skill)", tok: 90, scripts: true, refs: false, tags: s.tags.slice(), drift: false, fm: false, dupes: 0, repo: null, plugin: null };
+    const idx = state.data.skills.indexOf(s);
+    state.data.skills.splice(idx + 1, 0, fork);
+    state.data.wiring[fork.slug] = Object.fromEntries(state.data.targets.map(t => [t.id, t.id === "zc" ? "on" : "off"]));
+    toast(`Kept both: added ${fork.slug}`, { mono: `~/.agents/skills/${fork.slug} · wired to ZCode only`, undo: true });
+  } else {
+    state.data.targets.forEach(t => { if (cellState(slug, t.id) === "drift") setCell(slug, t.id, "on"); });
+    s.drift = false; state.quarantineCount += 2;
+    toast(`Instance ${choice.toUpperCase()} is canonical · wired to all 3 targets`, { mono: "2 superseded copies → ~/.agents/quarantine/2026-11-27T09-31-12/", undo: true });
+  }
+  state.overlay = null;
+  render();
+}
+
+/* Artboard 4: Add target */
+
+const ADAPTERS = ["Claude Code", "Antigravity (Strict)", "Codex", "OpenCode", "ZCode", "Custom (Lenient)", "Custom (Strict)"];
+const DETECTED = [
+  { name: "Claude (Client X)", path: "~/.claude-client-x/skills", adapter: "Claude Code", env: "CLAUDE_CONFIG_DIR=~/.claude-client-x", note: "CLAUDE_CONFIG_DIR candidate · 6 physical skills" },
+  { name: "Codex (Work)", path: "~/.codex-work/skills", adapter: "Codex", env: "CODEX_HOME=~/.codex-work", note: "CODEX_HOME candidate · empty skills/" },
+  { name: "Cursor", path: "~/.cursor/skills", adapter: "Custom (Lenient)", env: "", note: "parent exists · skills/ missing (will mkdir -p)" },
+];
+
+function renderAddTarget() {
+  const a = state.add;
+  const existing = new Set(state.data.targets.map(t => t.path));
+  const det = DETECTED.filter(d => !existing.has(d.path));
+  const parentMissing = a.path && !/^~\/\.(claude|codex|gemini|config|zcode)/.test(a.path);
+  const cloneOpts = state.data.targets.map(t => `<option value="${t.id}" ${a.cloneFrom === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("");
+  const nOn = state.data.skills.filter(s => LOADED.has(cellState(s.slug, a.cloneFrom))).length;
+  const cmds = a.path ? [
+    parentMissing ? `mkdir -p ${a.path}` : null,
+    a.initial === "clone" ? `ln -s ~/.agents/skills/<slug> ${a.path}/  × ${nOn}` : a.initial === "profile" ? `ln -s ~/.agents/skills/<slug> ${a.path}/  (Default profile)` : `# start empty: no symlinks`,
+    `loadout target add --name "${a.name || "…"}" --adapter "${a.adapter}"${a.env ? ` --env ${a.env}` : ""}`,
+  ].filter(Boolean) : ["# fill in a skills path to preview filesystem changes"];
+
+  return `<div class="modal" role="dialog" aria-label="Add target or account">
+    <div class="ov-head"><h2>Add Target / Account</h2><span class="faint">a target is any folder an agent reads skills from</span><button class="btn ghost x" data-action="close">Esc ✕</button></div>
+    <div class="ov-body">
+      <p class="section-label">Detected on disk, not yet wired</p>
+      <div class="linkmap" style="margin-bottom:6px">
+        ${det.map(d => `<div style="grid-template-columns:20px 1fr auto"><span class="am">●</span><span><b style="font-family:var(--sans)">${esc(d.name)}</b> <span class="dim">${esc(d.path)}</span><br><span class="faint" style="font-size:10.5px">${esc(d.note)}</span></span><button class="btn sm primary" data-action="add-detected" data-path="${esc(d.path)}">Add in 1 click</button></div>`).join("") || `<div><span></span><span class="faint">No unconfigured siblings left.</span><span></span></div>`}
+        <div style="grid-template-columns:20px 1fr auto"><span class="em">✓</span><span class="dim">~/.claude-second/skills <span class="faint">· already added as Claude (Work)</span></span><span></span></div>
+      </div>
+      <div style="height:14px"></div>
+      <p class="section-label">Custom path</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field"><label for="add-name">Display name</label><input id="add-name" class="input" placeholder="Claude (Client X)" value="${esc(a.name)}" data-input="add.name"></div>
+        <div class="field"><label for="add-path">Skills directory path</label><input id="add-path" class="input mono" placeholder="~/tools/my-agent/skills" value="${esc(a.path)}" data-input="add.path">
+          <span class="hint">${parentMissing ? `<span class="am">Parent directory will be created (mkdir -p).</span>` : "Missing parents are created automatically."}</span></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Adapter rules</label>
+        <div class="seg" style="flex-wrap:wrap" role="group">${ADAPTERS.map(x => `<button data-action="add-adapter" data-v="${x}" aria-pressed="${a.adapter === x}">${x}</button>`).join("")}</div>
+        <span class="hint">${a.adapter.includes("Strict") ? "Strict: requires YAML name + description and name == folder slug. Non-compliant skills show a rose jack." : "Lenient: accepts any SKILL.md."}</span></div>
+      <div class="field" style="margin-top:12px"><label for="add-env">Environment variable hint <span class="faint">(optional, used by T3 Code to map threads to this target)</span></label>
+        <input id="add-env" class="input mono" placeholder="CLAUDE_CONFIG_DIR=~/.claude-client-x" value="${esc(a.env)}" data-input="add.env"></div>
+      <div class="field" style="margin-top:12px"><label>Initial wiring</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div class="seg" role="group">
+            <button data-action="add-initial" data-v="empty" aria-pressed="${a.initial === "empty"}">Start empty</button>
+            <button data-action="add-initial" data-v="clone" aria-pressed="${a.initial === "clone"}">Clone active skills from</button>
+            <button data-action="add-initial" data-v="profile" aria-pressed="${a.initial === "profile"}">Enable Default profile</button>
+          </div>
+          ${a.initial === "clone" ? `<select class="select" data-change="add.cloneFrom" aria-label="Clone from">${cloneOpts}</select><span class="mono faint">${nOn} skills</span>` : ""}
+        </div></div>
+      <div class="ops" style="margin-top:14px">${cmds.map(c => `<div class="${c.startsWith("#") ? "faint" : ""}">${c.startsWith("#") ? "" : '<span class="faint">$ </span>'}${esc(c)}</div>`).join("")}</div>
+      ${a.error ? `<p class="ro" style="margin:10px 0 0">${esc(a.error)}</p>` : ""}
+    </div>
+    <div class="ov-foot"><span class="hint">New column appears in the matrix next to its vendor group.</span><div class="spacer"></div><button class="btn" data-action="close">Cancel</button><button class="btn primary" data-action="add-submit">Add target</button></div>
+  </div>`;
+}
+
+function addTarget({ name, path, adapter, env, initial, cloneFrom }) {
+  path = path.trim(); name = name.trim();
+  if (!name) return "Display name is required.";
+  if (!/^(~|\/)/.test(path)) return "Path must start with ~ or /.";
+  if (state.data.targets.some(t => t.path === path.replace(/\/$/, ""))) return "That path is already a target.";
+  const vendor = adapter.startsWith("Claude") ? "Claude" : adapter.startsWith("Codex") ? "OpenAI" : adapter.startsWith("Antigravity") ? "Gemini" : adapter.startsWith("OpenCode") ? "OpenCode" : adapter.startsWith("ZCode") ? "Z.ai" : "Custom";
+  const id = "t" + Date.now().toString(36);
+  const glyph = name.replace(/[^A-Za-z ]/g, " ").split(" ").filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase() || "NT";
+  const t = { id, name, vendor, glyph, path: path.replace(/\/$/, ""), adapter, strict: adapter.includes("Strict"), env: env || undefined, custom: true };
+  checkpoint(`added target ${name}`);
+  // Insert after the last target of the same vendor to keep groups together.
+  let at = -1;
+  state.data.targets.forEach((x, i) => { if (x.vendor === vendor) at = i; });
+  state.data.targets.splice(at === -1 ? state.data.targets.length : at + 1, 0, t);
+  state.data.skills.forEach(s => {
+    let on = false;
+    if (initial === "clone") on = LOADED.has(cellState(s.slug, cloneFrom)) || cellState(s.slug, cloneFrom) === "fm";
+    if (initial === "profile") on = (state.defaultWiring[s.slug] || {}).cp === "on";
+    state.data.wiring[s.slug][id] = on ? (s.fm && t.strict ? "fm" : "on") : "off";
+  });
+  state.overlay = null;
+  toast(`Added target ${name}`, { mono: `${t.path} · ${adapter}`, undo: true });
+  render();
+  return "";
+}
+
+/* Artboard 5: Inspector */
+
+const RUST_FILES = {
+  "SKILL.md": `---
+title: Rust Perf Audit
+---
+# Rust perf audit
+
+Profile Rust hot paths with cargo flamegraph and criterion,
+then flag allocations inside loops.
+
+## Steps
+1. \`cargo build --release\` with debug symbols (\`profile.release.debug = true\`).
+2. Run \`scripts/flamegraph.sh <bin> <args>\`.
+3. Read the widest frames first; check for \`clone()\` and \`Vec::new()\` in loops.
+4. Add a criterion bench before changing code; see references/criterion.md.`,
+  "SKILL.md (fixed)": null,
+  "scripts/flamegraph.sh": `#!/usr/bin/env bash
+set -euo pipefail
+bin="$1"; shift
+cargo flamegraph --bin "$bin" -o target/flamegraph.svg -- "$@"
+echo "open target/flamegraph.svg"`,
+  "scripts/bench-compare.sh": `#!/usr/bin/env bash
+set -euo pipefail
+cargo bench -- --save-baseline before
+git stash pop
+cargo bench -- --baseline before`,
+  "references/criterion.md": `# Criterion quick reference
+- Use black_box for inputs.
+- Compare baselines with --save-baseline / --baseline.
+- Keep benches under 5 s each.`,
+};
+
+function genericSkillMd(s) {
+  return `---\nname: ${s.slug}\ndescription: ${s.desc}\n---\n# ${s.slug}\n\n${s.desc}.\n\n## When to use\n- The task matches the description above.\n\n## Steps\n1. Read the relevant files first.\n2. Follow the project conventions.\n3. Verify with tests before reporting done.`;
+}
+
+function renderInspector(slug) {
+  const s = skillBySlug(slug);
+  const ins = state.inspect;
+  const isRust = slug === "rust-perf-audit";
+  const files = isRust ? ["SKILL.md", "scripts/flamegraph.sh", "scripts/bench-compare.sh", "references/criterion.md"] : ["SKILL.md", ...(s.scripts ? ["scripts/run.sh"] : []), ...(s.refs ? ["references/notes.md"] : [])];
+  const fileContent = f => ins.edits[`${slug}:${f}`] ?? (isRust ? (f === "SKILL.md" && !s.fm ? fixedRust() : RUST_FILES[f]) : f === "SKILL.md" ? genericSkillMd(s) : f.endsWith(".sh") ? "#!/usr/bin/env bash\nset -euo pipefail\necho \"run\"" : "# Notes\n");
+  const file = files.includes(ins.file) ? ins.file : "SKILL.md";
+
+  const compat = state.data.targets.map(t => {
+    const st = cellState(slug, t.id);
+    const bad = s.fm && t.strict;
+    return `<div title="${esc(t.adapter)}"><span class="${bad ? "ro" : "em"}">${bad ? "✗" : "✓"}</span><span style="flex:1">${esc(t.name)}</span><span class="faint mono" style="font-size:10px">${bad ? "dropped" : st === "on" ? "wired" : STATE_LABEL[st]}</span></div>`;
+  }).join("");
+
+  const linkRows = state.data.targets.map(t => {
+    const st = cellState(slug, t.id);
+    const p = `${t.path}/${slug}`;
+    const row = {
+      on: [`<span class="em">●</span>`, `${p} <span class="arrow">→</span> ~/.agents/skills/${slug}`, `<span class="em">readlink ✓</span>`],
+      off: [`<span class="faint">○</span>`, `<span class="faint">${p}</span>`, `<span class="faint">not linked</span>`],
+      copy: [`<span class="am">▣</span>`, `${p} <span class="faint">(physical folder)</span>`, `<span class="am">unmanaged</span>`],
+      drift: [`<span class="am">⇄</span>`, `${p} <span class="faint">(physical, differs)</span>`, `<span class="am">drifted</span>`],
+      fm: [`<span class="ro">!</span>`, `${p} <span class="arrow">→</span> ~/.agents/skills/${slug}`, `<span class="ro">linked · ignored by ${esc(t.name)}</span>`],
+      shadow: [`<span class="sk">P</span>`, `${p} <span class="faint">shadowed by ${esc(s.plugin || "plugin")}</span>`, `<span class="sk">plugin wins</span>`],
+      broken: [`<span class="ro">×</span>`, `${p} <span class="arrow">→</span> ~/old-skills/${slug}`, `<span class="ro">dangling</span>`],
+    }[st];
+    return `<div>${row[0]}<span>${row[1]}</span><span>${row[2]}</span></div>`;
+  }).join("");
+
+  const fixBox = s.fm ? `<div class="warnbox">
+      <h4 class="ro">Gemini Antigravity will ignore this skill</h4>
+      <p><span class="mono">name</span> and <span class="mono">description</span> are missing in the YAML frontmatter. Claude Code, Codex, OpenCode and ZCode accept it; strict adapters drop it silently.</p>
+      ${ins.showFix ? `<div class="diff unified" style="margin-bottom:10px"><div class="diff-head" style="grid-template-columns:1fr"><div>~/.agents/skills/rust-perf-audit/SKILL.md · proposed</div></div>
+        <div class="u-line"><span class="ln">1</span><span class="ln">1</span><span> </span><span>---</span></div>
+        <div class="u-line del"><span class="ln">2</span><span class="ln"></span><span class="ro">−</span><span>title: Rust Perf Audit</span></div>
+        <div class="u-line add"><span class="ln"></span><span class="ln">2</span><span class="em">+</span><span>name: rust-perf-audit</span></div>
+        <div class="u-line add"><span class="ln"></span><span class="ln">3</span><span class="em">+</span><span>description: Profile Rust hot paths with cargo flamegraph and criterion, flag allocations in loops</span></div>
+        <div class="u-line"><span class="ln">3</span><span class="ln">4</span><span> </span><span>---</span></div></div>` : ""}
+      <div style="display:flex;gap:8px"><button class="btn sm" data-action="toggle-fix">${ins.showFix ? "Hide preview" : "Preview fix"}</button><button class="btn sm primary" data-action="apply-fix" data-slug="${slug}">Fix frontmatter</button><span class="hint" style="align-self:center">description derived from the first paragraph · original backed up</span></div>
+    </div>` : `<div class="warnbox ok"><h4 class="em">Frontmatter valid for all adapters</h4><p style="margin:0">name == folder slug · description present · ${s.desc.length} chars</p></div>`;
+
+  return `<aside class="drawer" role="dialog" aria-label="Inspect ${esc(slug)}">
+    <div class="ov-head"><h2 class="mono">${esc(slug)}</h2><span class="badge">~${s.tok} tok</span>${s.repo ? `<span class="badge sk">repo ${esc(s.repo)}</span>` : ""}<button class="btn ghost x" data-action="close">Esc ✕</button></div>
+    <div class="ov-body">
+      <p class="dim" style="margin-top:0">${esc(s.desc)}</p>
+      <div class="insp-sec"><p class="section-label">Compatibility across adapters</p><div class="compat">${compat}</div>${fixBox}</div>
+      <div class="insp-sec"><p class="section-label">Symlink map · live readlink</p><div class="linkmap">${linkRows}</div></div>
+      <div class="insp-sec"><p class="section-label">Files</p>
+        <div class="files">
+          <nav aria-label="Files">${files.map(f => `<button data-action="insp-file" data-f="${f}" aria-current="${f === file}">${f.includes("/") ? "&nbsp;&nbsp;" + f.split("/")[1] : f}</button>`).join("").replace(/(<button[^>]*data-f="scripts\/[^"]*")/, '<div class="dir">scripts/</div>$1').replace(/(<button[^>]*data-f="references\/[^"]*")/, '<div class="dir">references/</div>$1')}</nav>
+          <div class="viewer"><div class="vbar"><span>~/.agents/skills/${esc(slug)}/${esc(file)}</span><span class="spacer"></span>
+            ${ins.editing ? `<button class="btn sm" data-action="insp-cancel">Cancel</button><button class="btn sm primary" data-action="insp-save" data-slug="${slug}" data-f="${file}">Save</button>` : `<button class="btn sm" data-action="insp-edit">Edit</button>`}</div>
+            ${ins.editing ? `<textarea id="insp-editor" aria-label="Edit ${esc(file)}">${esc(fileContent(file))}</textarea>` : `<pre>${esc(fileContent(file))}</pre>`}</div>
+        </div></div>
+      <div class="insp-sec"><p class="section-label">Provenance</p>
+        <dl class="kv"><dt>realpath</dt><dd>/Users/dev/.agents/skills/${esc(slug)}</dd><dt>installed via</dt><dd>${isRust ? "git clone github.com/acme/rust-skills (2026-10-02)" : s.repo ? `project-local · ${esc(s.repo)}` : "npx skills add (2026-09-18)"}</dd><dt>sha256 tree</dt><dd>${isRust ? "c03e91…4b7a" : "5ad1e2…90cf"}</dd><dt>size</dt><dd>${files.length} files · ${(s.tok * 0.11).toFixed(1)} KB</dd></dl></div>
+    </div>
+  </aside>`;
+}
+
+function fixedRust() {
+  return RUST_FILES["SKILL.md"].replace("title: Rust Perf Audit", "name: rust-perf-audit\ndescription: Profile Rust hot paths with cargo flamegraph and criterion, flag allocations in loops");
+}
+
+function applyFix(slug) {
+  const s = skillBySlug(slug);
+  checkpoint(`fixed frontmatter in ${slug}`);
+  s.fm = false;
+  state.data.targets.forEach(t => { if (cellState(slug, t.id) === "fm") setCell(slug, t.id, "on"); });
+  state.inspect.showFix = false;
+  toast(`Frontmatter fixed · ${slug} now loads in Antigravity`, { mono: `backup ~/.agents/quarantine/${stamp()}/${slug}/SKILL.md`, undo: true });
+  render();
+}
+
+/* ------------------------------------------------------------------ */
+/* Artboard 6: T3 Code embedding                                      */
+/* ------------------------------------------------------------------ */
+
+const THREADS = [
+  { title: "Fix flaky checkout e2e", tid: "cw", env: "CLAUDE_CONFIG_DIR=~/.claude-second", wt: "~/.t3/worktrees/saas/checkout-flake-8f2", repo: "saas" },
+  { title: "Tokio pool perf regression", tid: "cx", env: "CODEX_HOME=~/.codex", wt: "~/.t3/worktrees/ingest/tokio-pool-41a", repo: "ingest" },
+  { title: "Landing page a11y pass", tid: "cp", env: "~/.claude", wt: "~/.t3/worktrees/site/a11y-pass-c19", repo: "site" },
+];
+
+function pickerMatches() {
+  const m = state.host.text.match(/\$([\w-]*)$/);
+  if (!m) return null;
+  const q = m[1].toLowerCase();
+  return state.data.skills.filter(s => s.slug.includes(q)).slice(0, 7);
+}
+
+function renderHost() {
+  const h = state.host;
+  const th = THREADS[h.thread];
+  const t = targetById(th.tid);
+  const matches = pickerMatches();
+  const picker = matches ? `<div class="picker" role="listbox" aria-label="Skills">
+      <div class="ph"><span>$ skills · wired state for ${esc(t.name)}</span><span>↑↓ select · ⏎ insert</span></div>
+      ${matches.length ? matches.map((s, i) => {
+        const st = cellState(s.slug, t.id);
+        const ok = st === "on" || st === "shadow" || st === "copy" || st === "drift";
+        const fmBad = st === "fm";
+        const others = state.data.targets.filter(o => o.id !== t.id && cellState(s.slug, o.id) === "on").map(o => o.glyph);
+        return `<div class="pick ${i === h.hl ? "hl" : ""}" role="option" aria-selected="${i === h.hl}">
+          <div style="min-width:0"><div class="slug">$${esc(s.slug)}</div><div class="desc">${esc(s.desc)}</div></div>
+          <div class="acts">${others.length ? `<span class="faint mono" style="font-size:10px">${others.slice(0, 4).join(" ")}</span>` : ""}
+            ${ok ? `<span class="badge em">Wired in ${esc(t.name)}</span><button class="btn sm" data-action="host-insert" data-slug="${s.slug}">Insert</button>`
+              : fmBad ? `<span class="badge ro">Frontmatter ✗ for ${esc(t.name)}</span>`
+              : `<span class="badge am">1-click wire for ${esc(t.name)}</span><button class="btn sm primary" data-action="host-wire" data-slug="${s.slug}">Wire & Insert</button>`}</div></div>`;
+      }).join("") : `<div class="ph">No skills match</div>`}
+    </div>` : "";
+
+  const drawer = h.drawer ? `<aside class="h-drawer" aria-label="Skills drawer">
+      <header>
+        <div style="display:flex;align-items:center;gap:8px"><b>Skills</b><span class="tagname">&lt;loadout-switchboard mode="embedded"&gt;</span><button class="btn sm ghost" style="margin-left:auto" data-action="host-drawer" aria-label="Close drawer">✕</button></div>
+        <div class="seg"><button data-action="host-scope" data-v="global" aria-pressed="${h.scope === "global"}">Global targets</button><button data-action="host-scope" data-v="worktree" aria-pressed="${h.scope === "worktree"}">Current Git worktree</button></div>
+      </header>
+      ${h.scope === "global" ? renderMini(th.tid) : renderWorktree(th)}
+      <div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:6px;align-items:center" class="mono faint"><span class="em">●</span> synced over host WebSocket · <button class="btn sm ghost" data-action="go" data-n="2">Open full switchboard ↗</button></div>
+    </aside>` : "";
+
+  return `<div class="host ${h.drawer ? "" : "nodrawer"}">
+    <nav class="h-threads" aria-label="Threads"><h3>Threads</h3>
+      ${THREADS.map((x, i) => `<button class="thread" data-action="host-thread" data-i="${i}" aria-current="${i === h.thread}"><b>${esc(x.title)}</b><span>${esc(targetById(x.tid).name)} · ${esc(x.repo)}</span></button>`).join("")}
+      <div class="spacer"></div><div class="hint" style="padding:8px">Host IDE chrome is a neutral mock. Only the loadout parts are spec.</div>
+    </nav>
+    <section class="h-main">
+      <div class="h-bar"><b>${esc(th.title)}</b><span class="badge">${esc(t.name)}</span><span class="mono faint">${esc(th.env)}</span><span class="spacer"></span>
+        ${h.drawer ? "" : `<button class="btn sm" data-action="host-drawer">Skills drawer</button>`}</div>
+      <div class="h-chat">
+        <div class="msg me"><span class="who">you</span>Checkout test fails ~1 in 8 runs on CI. Find out why.</div>
+        <div class="msg"><span class="who">${esc(t.name)}</span>The flake is a race between the payment iframe load and the submit click. I'll switch to a web-first assertion and capture a trace on retry.</div>
+        ${h.chips.length ? `<div class="msg me"><span class="who">you · queued</span>${h.chips.map(c => `<span class="chip">$${esc(c)}</span>`).join("")} use these for the fix.</div>` : ""}
+      </div>
+      <div class="composer-wrap">${picker}
+        <div class="composer">
+          ${h.chips.length ? `<div class="chips">${h.chips.map(c => `<span class="chip">$${esc(c)}</span>`).join("")}</div>` : ""}
+          <input id="composer" placeholder="Message… type $ for skills" value="${esc(h.text)}" data-input="host.text" aria-label="Composer" autocomplete="off">
+          <div class="cbar"><span>${esc(t.name)}</span><span>·</span><span>worktree ${esc(th.wt.split("/").pop())}</span><span class="spacer"></span><span>⏎ send</span></div>
+        </div></div>
+    </section>
+    ${drawer}
+  </div>`;
+}
+
+function renderMini(activeTid) {
+  const ts = state.data.targets;
+  return `<div class="mini"><table>
+    <thead><tr><th style="text-align:left;padding-left:10px">skill</th>${ts.map(t => `<th class="${t.id === activeTid ? "active" : ""}" title="${esc(t.name)}">${t.glyph}</th>`).join("")}</tr></thead>
+    <tbody>${state.data.skills.map(s => `<tr><td class="s" title="${esc(s.slug)}">${esc(s.slug)}</td>${ts.map(t => { const st = cellState(s.slug, t.id); return `<td class="${t.id === activeTid ? "activecol" : ""}"><button class="jack" data-s="${st}" data-action="cell" data-slug="${s.slug}" data-t="${t.id}" aria-label="${esc(s.slug)} in ${esc(t.name)}: ${STATE_LABEL[st]}"><span class="j">${STATE_GLYPH[st]}</span></button></td>`; }).join("")}</tr>`).join("")}</tbody>
+  </table></div>`;
+}
+
+function renderWorktree(th) {
+  const repoSkills = state.data.skills.filter(s => s.repo && s.repo.endsWith(th.repo));
+  const extra = th.repo === "saas" ? [{ slug: "stripe-webhooks", note: "global skill, pinned for this repo" }] : [];
+  return `<div class="wt">
+    <div class="mono faint" style="font-size:11px">${esc(th.wt)}</div>
+    ${repoSkills.map(s => `<div class="wt-item"><div><div class="mono" style="font-weight:600">${esc(s.slug)}</div><div class="mono faint" style="font-size:10.5px">.claude/skills/${esc(s.slug)} → ~/dev/${esc(th.repo)}/.claude/skills/${esc(s.slug)}</div></div><span class="badge em">hydrated</span></div>`).join("")}
+    ${extra.map(x => `<div class="wt-item"><div><div class="mono" style="font-weight:600">${x.slug}</div><div class="mono faint" style="font-size:10.5px">${x.note}</div></div><span class="badge em">hydrated</span></div>`).join("")}
+    ${!repoSkills.length && !extra.length ? `<div class="hint">No project-local skills in ~/dev/${esc(th.repo)}. Global targets still apply.</div>` : ""}
+    <div class="wt-item" style="grid-template-columns:1fr"><div class="mono" style="font-size:11px"><span class="em">✓</span> managed symlinks listed in <span class="dim">.git/info/exclude</span> · git status clean</div></div>
+    <div class="wt-item" style="grid-template-columns:1fr auto"><span style="font-size:12px">Hydrate on every new worktree</span><span class="badge em">ON</span></div>
+  </div>`;
+}
+
+function hostInsert(slug) {
+  const h = state.host;
+  if (!h.chips.includes(slug)) h.chips.push(slug);
+  h.text = h.text.replace(/\$[\w-]*$/, "").trimEnd();
+  h.hl = 0;
+  render();
+  document.getElementById("composer")?.focus();
+}
+
+/* ------------------------------------------------------------------ */
+/* Artboard 7: Terminal UI                                            */
+/* ------------------------------------------------------------------ */
+
+function pad(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + "…" : s + " ".repeat(n - s.length); }
+const T_CELL = { on: ["●", "t-em"], off: ["·", "t-dim"], copy: ["▣", "t-am"], drift: ["≈", "t-am"], fm: ["!", "t-ro"], broken: ["×", "t-ro"], shadow: ["p", "t-sk"] };
+
+function renderTui() {
+  const tu = state.tui;
+  const W = tu.size === "120" ? 120 : 80, H = tu.size === "120" ? 36 : 24;
+  const skills = state.data.skills, ts = state.data.targets;
+  tu.r = Math.max(0, Math.min(tu.r, skills.length - 1));
+  tu.c = Math.max(0, Math.min(tu.c, ts.length - 1));
+  const nameW = W === 120 ? 26 : 24;
+  const cellW = 5;
+  const lines = [];
+  const line = (html, plainLen) => lines.push(html + " ".repeat(Math.max(0, W - plainLen)));
+
+  const title = ` loadout tui · ~/.agents/skills · ${skills.length} skills · ${ts.length} targets · profile ${state.profile}`;
+  const right = `scan 19ms `;
+  lines.push(`<span class="t-inv">${esc(pad(title, W - right.length))}${right}</span>`);
+  const att = skills.filter(needsAttention).length;
+  const f = ` [a]ll ${skills.length}  [!]attention ${att}  [≈]drift ${skills.filter(s => skillIssues(s).drift).length}  [×]broken ${skills.filter(s => skillIssues(s).broken).length}`;
+  line(`<span class="t-dim">${esc(f)}</span>`, f.length);
+  line("", 0);
+
+  const head = "  " + pad("SKILL", nameW) + pad("TOK", 6);
+  let hHtml = `<span class="t-b">${esc(head)}</span>`, hLen = head.length;
+  ts.forEach((t, i) => { const g = pad(" " + t.glyph, cellW); hHtml += i === tu.c ? `<span class="t-acc">${g}</span>` : `<span class="t-b">${g}</span>`; hLen += cellW; });
+  if (W === 120) { const d = "  DESCRIPTION"; hHtml += `<span class="t-b">${d}</span>`; hLen += d.length; }
+  line(hHtml, hLen);
+
+  const bud = " ".repeat(2 + nameW + 6);
+  let bHtml = bud, bLen = bud.length;
+  ts.forEach(t => { const b = budget(t.id); const s = pad(fmtTok(b.tok) + (b.hot ? "!" : ""), cellW); bHtml += `<span class="${b.hot ? "t-am" : "t-dim"}">${s}</span>`; bLen += cellW; });
+  line(bHtml, bLen);
+  line(`<span class="t-dim">${"─".repeat(W)}</span>`, W);
+
+  const footer = 6;
+  const visible = H - lines.length - footer;
+  let start = Math.max(0, Math.min(tu.r - Math.floor(visible / 2), skills.length - visible));
+  for (let i = start; i < Math.min(skills.length, start + visible); i++) {
+    const s = skills[i]; const sel = i === tu.r;
+    const iss = needsAttention(s);
+    const lead = sel ? "▸ " : "  ";
+    let html = `<span class="${sel ? "t-b" : ""}">${esc(lead + pad(s.slug, nameW))}</span><span class="t-dim">${esc(pad("~" + s.tok, 6))}</span>`;
+    let len = 2 + nameW + 6;
+    ts.forEach((t, ci) => {
+      const [g, cls] = T_CELL[cellState(s.slug, t.id)];
+      const txt = `  ${g}  `;
+      html += sel && ci === tu.c ? `<span class="t-cur">${txt}</span>` : `<span class="${cls}">${txt}</span>`;
+      len += cellW;
+    });
+    if (W === 120) { const d = "  " + pad(s.desc, W - len - 2); html += `<span class="${iss ? "t-am" : "t-dim"}">${esc(d)}</span>`; len += d.length; }
+    const padded = html + " ".repeat(Math.max(0, W - len));
+    lines.push(sel ? `<span class="t-sel">${padded}</span>` : padded);
+  }
+  while (lines.length < H - footer) line("", 0);
+
+  const cs = skills[tu.r], ct = ts[tu.c], st = cellState(cs.slug, ct.id);
+  line(`<span class="t-dim">${"─".repeat(W)}</span>`, W);
+  const d1 = ` ${cs.slug} · ${ct.name} · ${STATE_LABEL[st]}`;
+  line(`<span class="t-b">${esc(pad(d1, W))}</span>`, W);
+  const pth = st === "broken" ? `${ct.path}/${cs.slug} -> ~/old-skills/${cs.slug} (dangling)` : st === "on" || st === "fm" ? `${ct.path}/${cs.slug} -> ~/.agents/skills/${cs.slug}` : st === "off" ? `${ct.path}/${cs.slug} (not linked)` : `${ct.path}/${cs.slug} (physical folder)`;
+  const d2 = " " + pth;
+  line(`<span class="t-dim">${esc(pad(d2, W))}</span>`, W);
+  const d3 = " " + (tu.msg || (cs.fm ? "! frontmatter: missing name/description, strict targets drop it  (f fix)" : st === "drift" ? "≈ drifted copy: press d to open the diff resolver" : cs.desc));
+  line(`<span class="${tu.msg ? "t-em" : cs.fm || st === "drift" ? "t-am" : "t-dim"}">${esc(pad(d3, W))}</span>`, W);
+  line("", 0);
+  const keys = W === 120 ? " j/k skill  h/l target  ␣ toggle  d diff  f fix frontmatter  u undo  / search  p profile  s scan  ? help  q quit " : " j/k h/l move  ␣ toggle  d diff  f fix  u undo  / search  q quit ";
+  lines.push(`<span class="t-inv">${esc(pad(keys, W))}</span>`);
+
+  return `<div class="term-stage">
+    <div class="term-ctl"><div class="seg"><button data-action="tui-size" data-v="80" aria-pressed="${tu.size === "80"}">80×24</button><button data-action="tui-size" data-v="120" aria-pressed="${tu.size === "120"}">120×36</button></div>
+      <span class="hint">Click the terminal, then use <kbd>j</kbd><kbd>k</kbd><kbd>h</kbd><kbd>l</kbd> <kbd>Space</kbd> <kbd>d</kbd> <kbd>f</kbd> <kbd>u</kbd>. Changes show up in the web switchboard too.</span></div>
+    <div class="term"><div class="tbar"><i></i><i></i><i></i><span>dev@buildbox: ~ — loadout tui — ${W}×${H}</span></div>
+      <pre id="tui" tabindex="0" aria-label="loadout terminal UI">${lines.join("\n")}</pre></div>
+  </div>`;
+}
+
+function tuiKey(e) {
+  const tu = state.tui;
+  const skills = state.data.skills, ts = state.data.targets;
+  const k = e.key;
+  tu.msg = "";
+  if (k === "j" || k === "ArrowDown") tu.r = Math.min(skills.length - 1, tu.r + 1);
+  else if (k === "k" || k === "ArrowUp") tu.r = Math.max(0, tu.r - 1);
+  else if (k === "l" || k === "ArrowRight") tu.c = Math.min(ts.length - 1, tu.c + 1);
+  else if (k === "h" || k === "ArrowLeft") tu.c = Math.max(0, tu.c - 1);
+  else if (k === " ") {
+    const s = skills[tu.r], t = ts[tu.c], st = cellState(s.slug, t.id);
+    if (st === "on" || st === "off") { checkpoint(`${st === "off" ? "wired" : "unwired"} ${s.slug} → ${t.name}`); setCell(s.slug, t.id, st === "off" ? (s.fm && t.strict ? "fm" : "on") : "off"); tu.msg = `${st === "off" ? "linked" : "unlinked"} ${t.path}/${s.slug}  (u to undo)`; }
+    else if (st === "broken") { checkpoint(`repaired ${s.slug} in ${t.name}`); setCell(s.slug, t.id, "on"); tu.msg = `repaired dangling link → ~/.agents/skills/${s.slug}`; }
+    else tu.msg = `${STATE_LABEL[st]}: resolve with d (diff) or f (fix) first`;
+  }
+  else if (k === "d") { const s = skills[tu.r]; if (skillIssues(s).drift || skillIssues(s).dupes) { state.view = "board"; openOverlay({ type: "diff", slug: s.slug }); return true; } tu.msg = "no drift or duplicates for this skill"; }
+  else if (k === "f") { const s = skills[tu.r]; if (s.fm) { applyFix(s.slug); tu.msg = "frontmatter fixed · backup in quarantine"; } else tu.msg = "frontmatter already valid"; }
+  else if (k === "u") { undoLast(); return true; }
+  else if (k === "s") tu.msg = "scanned 64,200 dirs in 19 ms · no changes";
+  else return false;
+  render();
+  document.getElementById("tui")?.focus();
+  return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Events                                                             */
+/* ------------------------------------------------------------------ */
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-action]");
+  if (state.menu && !e.target.closest(".menu") && !(el && el.dataset.action === "colmenu")) { state.menu = null; renderMenuOnly(); }
+  if (!el) { if (state.help && !e.target.closest(".help")) { state.help = false; render(); } return; }
+  const a = el.dataset.action, ds = el.dataset;
+  switch (a) {
+    case "go": goArtboard(Number(ds.n)); break;
+    case "theme": {
+      const root = document.documentElement;
+      root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+      try { localStorage.setItem("loadout-theme", root.dataset.theme); } catch (_) { /* storage unavailable */ }
+      break;
+    }
+    case "help": state.help = !state.help; render(); break;
+    case "reset": { const theme = document.documentElement.dataset.theme; state = freshState(); document.documentElement.dataset.theme = theme; REPO_SKILLS.forEach((r, i) => { r.choice = i < 2 ? "keep" : "promote"; }); toast("Demo reset"); render(); break; }
+    case "undo": undoLast(); break;
+    case "filter": state.filter = ds.f; state.cursor.r = 0; render(); break;
+    case "clear-filters": state.filter = "all"; state.query = ""; render(); break;
+    case "scan": runScan(); break;
+    case "cell": { const rows = visibleSkills(); const ri = rows.findIndex(s => s.slug === ds.slug); if (ri >= 0 && state.view === "board") { state.cursor.r = ri; state.cursor.c = state.data.targets.findIndex(t => t.id === ds.t); } activateCell(ds.slug, ds.t); break; }
+    case "inspect": e.stopPropagation(); state.selected = ds.slug; openOverlay({ type: "inspect", slug: ds.slug }); break;
+    case "diff": e.stopPropagation(); openOverlay({ type: "diff", slug: ds.slug }); break;
+    case "add-target": openOverlay({ type: "add" }); break;
+    case "close": closeOverlay(); break;
+    case "colmenu": { const r = el.getBoundingClientRect(); state.menu = { t: ds.t, x: Math.min(r.left, window.innerWidth - 250), y: r.bottom + 4 }; renderMenuOnly(); break; }
+    case "col-all": state.menu = null; setColumn(ds.t, ds.on === "1"); break;
+    case "col-clone": state.menu = null; cloneColumn(ds.from, ds.t); break;
+    case "col-open": state.menu = null; toast(`open ${targetById(ds.t).path}`, { mono: "revealed in Finder / xdg-open" }); renderMenuOnly(); break;
+    case "col-remove": {
+      const t = targetById(ds.t); state.menu = null;
+      if (!t.custom) { renderMenuOnly(); break; }
+      checkpoint(`removed target ${t.name}`);
+      state.data.targets = state.data.targets.filter(x => x.id !== t.id);
+      toast(`Removed target ${t.name}`, { mono: "symlinks moved to quarantine · skills untouched", undo: true });
+      render(); break;
+    }
+    // Wizard
+    case "wiz-step": if (Number(ds.step) === 3 && !state.wizard.log.length) break; state.wizard.step = Number(ds.step); render(); break;
+    case "plan-toggle": { const p = state.wizard.plan.find(x => x.id === Number(ds.id)); p.on = el.checked; render(); break; }
+    case "repo-choice": REPO_SKILLS[Number(ds.i)].choice = ds.v; render(); break;
+    case "wiz-apply": applyWizard(); break;
+    // Resolver
+    case "diff-tab": state.diff.tab = ds.v; render(); break;
+    case "diff-mode": state.diff.mode = ds.v; state.diff.tab = "skill"; render(); break;
+    case "diff-choice": state.diff.choice = ds.v; render(); break;
+    case "resolve": resolve(ds.slug); break;
+    // Add target
+    case "add-adapter": state.add.adapter = ds.v; render(); break;
+    case "add-initial": state.add.initial = ds.v; render(); break;
+    case "add-detected": { const d = DETECTED.find(x => x.path === ds.path); addTarget({ ...d, initial: "clone", cloneFrom: d.adapter === "Codex" ? "cx" : "cp" }); break; }
+    case "add-submit": { const err = addTarget(state.add); if (err) { state.add.error = err; render(); } break; }
+    // Inspector
+    case "toggle-fix": state.inspect.showFix = !state.inspect.showFix; render(); break;
+    case "apply-fix": applyFix(ds.slug); break;
+    case "insp-file": state.inspect.file = ds.f; state.inspect.editing = false; render(); break;
+    case "insp-edit": state.inspect.editing = true; render(); document.getElementById("insp-editor")?.focus(); break;
+    case "insp-cancel": state.inspect.editing = false; render(); break;
+    case "insp-save": { const v = document.getElementById("insp-editor").value; state.inspect.edits[`${ds.slug}:${ds.f}`] = v; state.inspect.editing = false; toast(`Saved ${ds.f}`, { mono: `~/.agents/skills/${ds.slug}/${ds.f} · all wired targets see it instantly` }); render(); break; }
+    // Host
+    case "host-thread": state.host.thread = Number(ds.i); state.host.hl = 0; render(); break;
+    case "host-scope": state.host.scope = ds.v; render(); break;
+    case "host-drawer": state.host.drawer = !state.host.drawer; render(); break;
+    case "host-insert": hostInsert(ds.slug); break;
+    case "host-wire": {
+      const t = targetById(THREADS[state.host.thread].tid);
+      checkpoint(`wired ${ds.slug} → ${t.name}`);
+      setCell(ds.slug, t.id, "on");
+      toast(`Wired ${ds.slug} → ${t.name} and inserted`, { mono: `ln -s ~/.agents/skills/${ds.slug} ${t.path}/${ds.slug}`, undo: true });
+      hostInsert(ds.slug); break;
+    }
+    // TUI
+    case "tui-size": state.tui.size = ds.v; render(); document.getElementById("tui")?.focus(); break;
+  }
+});
+
+function renderMenuOnly() { document.getElementById("menu-root").innerHTML = renderMenu(); }
+
+document.addEventListener("input", e => {
+  const key = e.target.dataset.input;
+  if (!key) return;
+  if (key === "query") { state.query = e.target.value; state.cursor.r = 0; }
+  else if (key === "host.text") { state.host.text = e.target.value; state.host.hl = 0; }
+  else if (key.startsWith("add.")) { state.add[key.slice(4)] = e.target.value; state.add.error = ""; }
+  render();
+});
+
+document.addEventListener("change", e => {
+  const key = e.target.dataset.change;
+  if (key === "profile") applyProfile(e.target.value);
+  else if (key === "add.cloneFrom") { state.add.cloneFrom = e.target.value; render(); }
+});
+
+document.addEventListener("keydown", e => {
+  const typing = e.target.matches("input, textarea, select");
+  if (e.key === "Escape") {
+    if (state.menu) { state.menu = null; renderMenuOnly(); return; }
+    if (state.help) { state.help = false; render(); return; }
+    if (state.overlay) { closeOverlay(); return; }
+    if (typing) { e.target.blur(); return; }
+  }
+  // Composer picker navigation
+  if (e.target.id === "composer") {
+    const m = pickerMatches();
+    if (m && m.length) {
+      if (e.key === "ArrowDown") { e.preventDefault(); state.host.hl = (state.host.hl + 1) % m.length; render(); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); state.host.hl = (state.host.hl - 1 + m.length) % m.length; render(); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const s = m[state.host.hl]; const t = targetById(THREADS[state.host.thread].tid);
+        if (cellState(s.slug, t.id) === "off") { checkpoint(`wired ${s.slug} → ${t.name}`); setCell(s.slug, t.id, "on"); toast(`Wired ${s.slug} → ${t.name} and inserted`, { undo: true }); }
+        hostInsert(s.slug); return;
+      }
+    }
+    return;
+  }
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === "?") { state.help = !state.help; render(); return; }
+
+  if (state.view === "tui" && document.activeElement?.id === "tui") { if (tuiKey(e)) e.preventDefault(); return; }
+  if (/^[1-7]$/.test(e.key) && !state.overlay) { goArtboard(Number(e.key)); return; }
+  if (e.key === "u") { undoLast(); return; }
+
+  if (state.view === "board" && !state.overlay) {
+    const rows = visibleSkills(), ts = state.data.targets, c = state.cursor;
+    const s = rows[c.r];
+    switch (e.key) {
+      case "/": e.preventDefault(); document.getElementById("search")?.focus(); return;
+      case "j": case "ArrowDown": c.r = Math.min(rows.length - 1, c.r + 1); break;
+      case "k": case "ArrowUp": c.r = Math.max(0, c.r - 1); break;
+      case "l": case "ArrowRight": c.c = Math.min(ts.length - 1, c.c + 1); break;
+      case "h": case "ArrowLeft": c.c = Math.max(0, c.c - 1); break;
+      case " ": if (s) { e.preventDefault(); activateCell(s.slug, ts[c.c].id); } return;
+      case "Enter": if (s) { state.selected = s.slug; openOverlay({ type: "inspect", slug: s.slug }); } return;
+      case "d": if (s && (skillIssues(s).drift || skillIssues(s).dupes)) openOverlay({ type: "diff", slug: s.slug }); else toast("No drift or duplicates for this skill"); return;
+      default: return;
+    }
+    e.preventDefault();
+    render();
+    document.querySelector(".jack.cur")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+});
+
+try { const saved = localStorage.getItem("loadout-theme"); if (saved) document.documentElement.dataset.theme = saved; } catch (_) { /* storage unavailable */ }
+window.addEventListener("resize", () => {
+  const topbar = document.querySelector(".topbar");
+  if (topbar) document.getElementById("artboard").style.setProperty("--topbar-h", `${topbar.offsetHeight}px`);
+});
+render();
+</script>
+</body>
+</html>

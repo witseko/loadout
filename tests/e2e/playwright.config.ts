@@ -1,4 +1,4 @@
-/** Playwright config for the loadout e2e suite. */
+/** Playwright config for the singlet e2e suite. */
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({

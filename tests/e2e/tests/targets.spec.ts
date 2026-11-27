@@ -4,7 +4,7 @@ import { isRealDir, isSymlink, pathExists } from '../support/fs-checks.js';
 
 test('custom target, target clone, and independent multi-account toggles', ({ sandbox }) => {
   sandbox.mkdir('.claude/skills');
-  // Neither .claude-second/skills nor my-bot/skills exists yet: loadout must create them.
+  // Neither .claude-second/skills nor my-bot/skills exists yet: singlet must create them.
   sandbox.write('.claude-second/settings.json', '{}');
   sandbox.writeSkill('.agents/skills', 'alpha-skill', 'Alpha canonical skill');
   sandbox.writeSkill('.agents/skills', 'beta-skill', 'Beta canonical skill');

@@ -1,9 +1,9 @@
 /**
- * @loadout/t3code-plugin: Effect-TS Backend Service (`apps/server`)
+ * @singlet/t3code-plugin: Effect-TS Backend Service (`apps/server`)
  *
  * Idiomatic Effect-TS `Context.Tag` + `Layer.scoped` integration for
  * `pingdotgg/t3code`'s `apps/server`:
- * - Spawns and supervises `loadout rpc` inside the Effect Scope
+ * - Spawns and supervises `singlet rpc` inside the Effect Scope
  * - Exposes typed catalog/skill/target/quarantine/profile operations & `events` Stream
  * - Provides T3 Code lifecycle hooks:
  *   1. `onWorktreeCreated`   -> hydrates untracked skill symlinks excluded via `.git/info/exclude`
@@ -38,10 +38,10 @@ import {
   type SkillSaveResult,
   type SkillToggleParams,
   type SkillToggleResult,
-  type LoadoutEvent,
-  type LoadoutRpcMethod,
-  type LoadoutRpcParams,
-  type LoadoutRpcResult,
+  type SingletEvent,
+  type SingletRpcMethod,
+  type SingletRpcParams,
+  type SingletRpcResult,
   type TargetAddParams,
   type TargetCloneParams,
   type TargetCloneResult,
@@ -51,20 +51,20 @@ import {
   type WorktreeHydrateResult,
 } from "../protocol.js";
 import {
-  LoadoutRpcClient,
-  LoadoutRpcError,
-  type LoadoutRpcClientOptions,
-  type LoadoutRpcErrorCode,
-} from "./LoadoutRpcClient.js";
+  SingletRpcClient,
+  SingletRpcError,
+  type SingletRpcClientOptions,
+  type SingletRpcErrorCode,
+} from "./SingletRpcClient.js";
 
 // ---------------------------------------------------------------------------
 // Error & Configuration Types
 // ---------------------------------------------------------------------------
 
-export type LoadoutErrorCode = LoadoutRpcErrorCode | "UNKNOWN";
+export type SingletErrorCode = SingletRpcErrorCode | "UNKNOWN";
 
-export class LoadoutError extends Data.TaggedError("LoadoutError")<{
-  readonly code: LoadoutErrorCode;
+export class SingletError extends Data.TaggedError("SingletError")<{
+  readonly code: SingletErrorCode;
   readonly message: string;
   readonly method?: string;
   readonly rpcCode?: number;
@@ -72,10 +72,10 @@ export class LoadoutError extends Data.TaggedError("LoadoutError")<{
   readonly cause?: unknown;
 }> {}
 
-function toLoadoutError(err: unknown, fallbackMethod?: string): LoadoutError {
-  if (err instanceof LoadoutError) return err;
-  if (err instanceof LoadoutRpcError) {
-    return new LoadoutError({
+function toSingletError(err: unknown, fallbackMethod?: string): SingletError {
+  if (err instanceof SingletError) return err;
+  if (err instanceof SingletRpcError) {
+    return new SingletError({
       code: err.code,
       message: err.message,
       method: err.method ?? fallbackMethod,
@@ -84,7 +84,7 @@ function toLoadoutError(err: unknown, fallbackMethod?: string): LoadoutError {
       cause: err.cause ?? err,
     });
   }
-  return new LoadoutError({
+  return new SingletError({
     code: "UNKNOWN",
     message: err instanceof Error ? err.message : String(err),
     method: fallbackMethod,
@@ -92,16 +92,16 @@ function toLoadoutError(err: unknown, fallbackMethod?: string): LoadoutError {
   });
 }
 
-export interface LoadoutServiceConfigOptions extends LoadoutRpcClientOptions {
+export interface SingletServiceConfigOptions extends SingletRpcClientOptions {
   /** Default auto-wire behavior for `onBeforeProviderTurn` when not specified per-call. */
   readonly defaultAutoWire?: boolean;
   /** Default frontmatter auto-fix behavior for strict targets in `onBeforeProviderTurn`. */
   readonly defaultAutoFixFrontmatter?: boolean;
 }
 
-export class LoadoutServiceConfig extends Context.Tag(
-  "t3code/plugin/LoadoutServiceConfig",
-)<LoadoutServiceConfig, LoadoutServiceConfigOptions>() {}
+export class SingletServiceConfig extends Context.Tag(
+  "t3code/plugin/SingletServiceConfig",
+)<SingletServiceConfig, SingletServiceConfigOptions>() {}
 
 // ---------------------------------------------------------------------------
 // T3 Code Lifecycle Hook Types
@@ -148,61 +148,61 @@ export interface BeforeProviderTurnReport {
 // Effect Service Contract
 // ---------------------------------------------------------------------------
 
-export interface LoadoutServiceShape {
-  readonly getCatalog: () => Effect.Effect<CatalogSnapshot, LoadoutError>;
+export interface SingletServiceShape {
+  readonly getCatalog: () => Effect.Effect<CatalogSnapshot, SingletError>;
   readonly scanCatalog: (
     req?: CatalogScanParams,
-  ) => Effect.Effect<CatalogSnapshot, LoadoutError>;
+  ) => Effect.Effect<CatalogSnapshot, SingletError>;
   readonly toggleSkill: (
     req: SkillToggleParams,
-  ) => Effect.Effect<SkillToggleResult, LoadoutError>;
+  ) => Effect.Effect<SkillToggleResult, SingletError>;
   readonly consolidateSkills: (
     req: SkillConsolidateParams,
-  ) => Effect.Effect<SkillConsolidateResult, LoadoutError>;
+  ) => Effect.Effect<SkillConsolidateResult, SingletError>;
   readonly resolveDuplicate: (
     req: SkillResolveDriftParams,
-  ) => Effect.Effect<SkillResolveDriftResult, LoadoutError>;
+  ) => Effect.Effect<SkillResolveDriftResult, SingletError>;
   readonly fixFrontmatter: (
     req: SkillFixFrontmatterParams,
-  ) => Effect.Effect<SkillFixFrontmatterResult, LoadoutError>;
-  readonly getSkill: (slug: string) => Effect.Effect<SkillDetail, LoadoutError>;
+  ) => Effect.Effect<SkillFixFrontmatterResult, SingletError>;
+  readonly getSkill: (slug: string) => Effect.Effect<SkillDetail, SingletError>;
   readonly saveSkill: (
     req: SkillSaveParams,
-  ) => Effect.Effect<SkillSaveResult, LoadoutError>;
+  ) => Effect.Effect<SkillSaveResult, SingletError>;
   readonly addCustomTarget: (
     req: TargetAddParams,
-  ) => Effect.Effect<TargetInstance, LoadoutError>;
+  ) => Effect.Effect<TargetInstance, SingletError>;
   readonly removeTarget: (
     req: TargetRemoveParams,
-  ) => Effect.Effect<TargetRemoveResult, LoadoutError>;
+  ) => Effect.Effect<TargetRemoveResult, SingletError>;
   readonly cloneTarget: (
     req: TargetCloneParams,
-  ) => Effect.Effect<TargetCloneResult, LoadoutError>;
+  ) => Effect.Effect<TargetCloneResult, SingletError>;
   readonly undoLastQuarantine: () => Effect.Effect<
     QuarantineUndoResult,
-    LoadoutError
+    SingletError
   >;
-  readonly listProfiles: () => Effect.Effect<ProfileListResult, LoadoutError>;
+  readonly listProfiles: () => Effect.Effect<ProfileListResult, SingletError>;
   readonly saveProfile: (
     req: ProfileSaveParams,
-  ) => Effect.Effect<ProfileSaveResult, LoadoutError>;
+  ) => Effect.Effect<ProfileSaveResult, SingletError>;
   readonly applyProfile: (
     req: ProfileApplyParams,
-  ) => Effect.Effect<ProfileApplyResult, LoadoutError>;
+  ) => Effect.Effect<ProfileApplyResult, SingletError>;
   readonly deleteProfile: (
     req: ProfileDeleteParams,
-  ) => Effect.Effect<ProfileDeleteResult, LoadoutError>;
+  ) => Effect.Effect<ProfileDeleteResult, SingletError>;
   readonly hydrateWorktree: (
     worktreePath: string,
     providerEnv?: Readonly<Record<string, string | undefined>>,
     options?: { readonly repoRoot?: string; readonly providerId?: string },
-  ) => Effect.Effect<WorktreeHydrateResult, LoadoutError>;
+  ) => Effect.Effect<WorktreeHydrateResult, SingletError>;
 
   /** Raw typed JSON-RPC 2.0 dispatch (handy for T3 Code WebSocket forwarding). */
-  readonly dispatchRpc: <M extends LoadoutRpcMethod>(
+  readonly dispatchRpc: <M extends SingletRpcMethod>(
     method: M,
-    params?: LoadoutRpcParams<M>,
-  ) => Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+    params?: SingletRpcParams<M>,
+  ) => Effect.Effect<SingletRpcResult<M>, SingletError>;
 
   /**
    * T3 Code `apps/server` lifecycle hook invoked immediately after a fresh
@@ -210,7 +210,7 @@ export interface LoadoutServiceShape {
    */
   readonly onWorktreeCreated: (
     input: WorktreeCreatedHookInput,
-  ) => Effect.Effect<WorktreeHydrateResult, LoadoutError>;
+  ) => Effect.Effect<WorktreeHydrateResult, SingletError>;
 
   /**
    * T3 Code `apps/server` lifecycle hook invoked right before spawning a
@@ -218,15 +218,15 @@ export interface LoadoutServiceShape {
    */
   readonly onBeforeProviderTurn: (
     input: BeforeProviderTurnInput,
-  ) => Effect.Effect<BeforeProviderTurnReport, LoadoutError>;
+  ) => Effect.Effect<BeforeProviderTurnReport, SingletError>;
 
   /** Live stream of catalog updates, toggles, worktree hydration, and RPC lifecycle events. */
-  readonly events: Stream.Stream<LoadoutEvent>;
+  readonly events: Stream.Stream<SingletEvent>;
 }
 
-export class LoadoutService extends Context.Tag("t3code/plugin/LoadoutService")<
-  LoadoutService,
-  LoadoutServiceShape
+export class SingletService extends Context.Tag("t3code/plugin/SingletService")<
+  SingletService,
+  SingletServiceShape
 >() {}
 
 // ---------------------------------------------------------------------------
@@ -254,18 +254,18 @@ function nowIso(): string {
 // Scoped Service Construction & Live Layer
 // ---------------------------------------------------------------------------
 
-export const makeLoadoutService = (
-  options: LoadoutServiceConfigOptions = {},
+export const makeSingletService = (
+  options: SingletServiceConfigOptions = {},
 ) =>
   Effect.gen(function* () {
     const pubsub = yield* Effect.acquireRelease(
-      PubSub.unbounded<LoadoutEvent>(),
+      PubSub.unbounded<SingletEvent>(),
       (ps) => PubSub.shutdown(ps),
     );
 
     const client = yield* Effect.acquireRelease(
       Effect.sync(() => {
-        const rpc = new LoadoutRpcClient(options);
+        const rpc = new SingletRpcClient(options);
 
         pubsub.unsafeOffer({
           type: "rpc.connected",
@@ -313,13 +313,13 @@ export const makeLoadoutService = (
       (rpc) => Effect.promise(() => rpc.close()),
     );
 
-    const invoke = <M extends LoadoutRpcMethod>(
+    const invoke = <M extends SingletRpcMethod>(
       method: M,
-      params?: LoadoutRpcParams<M>,
-    ): Effect.Effect<LoadoutRpcResult<M>, LoadoutError> =>
+      params?: SingletRpcParams<M>,
+    ): Effect.Effect<SingletRpcResult<M>, SingletError> =>
       Effect.tryPromise({
         try: () => client.call(method, params),
-        catch: (err) => toLoadoutError(err, method),
+        catch: (err) => toSingletError(err, method),
       });
 
     const publishCatalogIfPresent = (
@@ -335,12 +335,12 @@ export const makeLoadoutService = (
           }).pipe(Effect.asVoid)
         : Effect.void;
 
-    const getCatalog = (): Effect.Effect<CatalogSnapshot, LoadoutError> =>
+    const getCatalog = (): Effect.Effect<CatalogSnapshot, SingletError> =>
       invoke("catalog.get", {});
 
     const scanCatalog = (
       req: CatalogScanParams = {},
-    ): Effect.Effect<CatalogSnapshot, LoadoutError> =>
+    ): Effect.Effect<CatalogSnapshot, SingletError> =>
       Effect.gen(function* () {
         const snapshot = yield* invoke("catalog.scan", req);
         yield* publishCatalogIfPresent(snapshot, "catalog.scan");
@@ -349,7 +349,7 @@ export const makeLoadoutService = (
 
     const toggleSkill = (
       req: SkillToggleParams,
-    ): Effect.Effect<SkillToggleResult, LoadoutError> =>
+    ): Effect.Effect<SkillToggleResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("skill.toggle", req);
         yield* PubSub.publish(pubsub, {
@@ -365,7 +365,7 @@ export const makeLoadoutService = (
 
     const consolidateSkills = (
       req: SkillConsolidateParams,
-    ): Effect.Effect<SkillConsolidateResult, LoadoutError> =>
+    ): Effect.Effect<SkillConsolidateResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("skill.consolidate", req);
         if (!req.dryRun) {
@@ -376,7 +376,7 @@ export const makeLoadoutService = (
 
     const resolveDuplicate = (
       req: SkillResolveDriftParams,
-    ): Effect.Effect<SkillResolveDriftResult, LoadoutError> =>
+    ): Effect.Effect<SkillResolveDriftResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("skill.resolveDrift", req);
         yield* publishCatalogIfPresent(result.catalog, "skill.resolveDrift");
@@ -385,7 +385,7 @@ export const makeLoadoutService = (
 
     const fixFrontmatter = (
       req: SkillFixFrontmatterParams,
-    ): Effect.Effect<SkillFixFrontmatterResult, LoadoutError> =>
+    ): Effect.Effect<SkillFixFrontmatterResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("skill.fixFrontmatter", req);
         if (req.apply) {
@@ -394,12 +394,12 @@ export const makeLoadoutService = (
         return result;
       });
 
-    const getSkill = (slug: string): Effect.Effect<SkillDetail, LoadoutError> =>
+    const getSkill = (slug: string): Effect.Effect<SkillDetail, SingletError> =>
       invoke("skill.get", { slug });
 
     const saveSkill = (
       req: SkillSaveParams,
-    ): Effect.Effect<SkillSaveResult, LoadoutError> =>
+    ): Effect.Effect<SkillSaveResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("skill.save", req);
         yield* publishCatalogIfPresent(result.catalog, "skill.save");
@@ -408,7 +408,7 @@ export const makeLoadoutService = (
 
     const addCustomTarget = (
       req: TargetAddParams,
-    ): Effect.Effect<TargetInstance, LoadoutError> =>
+    ): Effect.Effect<TargetInstance, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("target.add", req);
         yield* publishCatalogIfPresent(result.catalog, "target.add");
@@ -417,7 +417,7 @@ export const makeLoadoutService = (
 
     const removeTarget = (
       req: TargetRemoveParams,
-    ): Effect.Effect<TargetRemoveResult, LoadoutError> =>
+    ): Effect.Effect<TargetRemoveResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("target.remove", req);
         yield* publishCatalogIfPresent(result.catalog, "target.remove");
@@ -426,7 +426,7 @@ export const makeLoadoutService = (
 
     const cloneTarget = (
       req: TargetCloneParams,
-    ): Effect.Effect<TargetCloneResult, LoadoutError> =>
+    ): Effect.Effect<TargetCloneResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("target.clone", req);
         yield* publishCatalogIfPresent(result.catalog, "target.clone");
@@ -435,7 +435,7 @@ export const makeLoadoutService = (
 
     const undoLastQuarantine = (): Effect.Effect<
       QuarantineUndoResult,
-      LoadoutError
+      SingletError
     > =>
       Effect.gen(function* () {
         const result = yield* invoke("quarantine.undo", {});
@@ -443,12 +443,12 @@ export const makeLoadoutService = (
         return result;
       });
 
-    const listProfiles = (): Effect.Effect<ProfileListResult, LoadoutError> =>
+    const listProfiles = (): Effect.Effect<ProfileListResult, SingletError> =>
       invoke("profile.list", {});
 
     const saveProfile = (
       req: ProfileSaveParams,
-    ): Effect.Effect<ProfileSaveResult, LoadoutError> =>
+    ): Effect.Effect<ProfileSaveResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("profile.save", req);
         yield* publishCatalogIfPresent(result.catalog, "profile.save");
@@ -457,7 +457,7 @@ export const makeLoadoutService = (
 
     const applyProfile = (
       req: ProfileApplyParams,
-    ): Effect.Effect<ProfileApplyResult, LoadoutError> =>
+    ): Effect.Effect<ProfileApplyResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("profile.apply", req);
         yield* publishCatalogIfPresent(result.catalog, "profile.apply");
@@ -466,7 +466,7 @@ export const makeLoadoutService = (
 
     const deleteProfile = (
       req: ProfileDeleteParams,
-    ): Effect.Effect<ProfileDeleteResult, LoadoutError> =>
+    ): Effect.Effect<ProfileDeleteResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("profile.delete", req);
         yield* publishCatalogIfPresent(result.catalog, "profile.delete");
@@ -477,7 +477,7 @@ export const makeLoadoutService = (
       worktreePath: string,
       providerEnv?: Readonly<Record<string, string | undefined>>,
       hookOpts?: { readonly repoRoot?: string; readonly providerId?: string },
-    ): Effect.Effect<WorktreeHydrateResult, LoadoutError> =>
+    ): Effect.Effect<WorktreeHydrateResult, SingletError> =>
       Effect.gen(function* () {
         const result = yield* invoke("worktree.hydrate", {
           worktreePath,
@@ -497,7 +497,7 @@ export const makeLoadoutService = (
 
     const onWorktreeCreated = (
       input: WorktreeCreatedHookInput,
-    ): Effect.Effect<WorktreeHydrateResult, LoadoutError> =>
+    ): Effect.Effect<WorktreeHydrateResult, SingletError> =>
       hydrateWorktree(input.worktreePath, input.env, {
         repoRoot: input.repoRoot,
         providerId: input.providerId,
@@ -505,7 +505,7 @@ export const makeLoadoutService = (
 
     const onBeforeProviderTurn = (
       input: BeforeProviderTurnInput,
-    ): Effect.Effect<BeforeProviderTurnReport, LoadoutError> =>
+    ): Effect.Effect<BeforeProviderTurnReport, SingletError> =>
       Effect.gen(function* () {
         const autoWire = input.autoWire ?? options.defaultAutoWire ?? false;
         const autoFixFrontmatter =
@@ -523,14 +523,14 @@ export const makeLoadoutService = (
 
         const catalog = yield* getCatalog();
         const envWithHome: Record<string, string | undefined> = {
-          ...(options.loadoutHome ? { LOADOUT_HOME: options.loadoutHome } : {}),
+          ...(options.singletHome ? { SINGLET_HOME: options.singletHome } : {}),
           ...input.env,
         };
         const resolvedTarget = resolveTargetForEnv(
           catalog.targets,
           input.providerId,
           envWithHome,
-          { homeDir: options.loadoutHome ?? input.env?.HOME ?? process.env.HOME },
+          { homeDir: options.singletHome ?? input.env?.HOME ?? process.env.HOME },
         );
 
         const warnings: string[] = [];
@@ -543,7 +543,7 @@ export const makeLoadoutService = (
 
         if (!resolvedTarget) {
           warnings.push(
-            `No registered loadout target matched provider "${input.providerId}" for the current environment.`,
+            `No registered singlet target matched provider "${input.providerId}" for the current environment.`,
           );
           return {
             ok: requestedSlugs.length === 0,
@@ -569,7 +569,7 @@ export const makeLoadoutService = (
           if (!skill) {
             missingSkills.push(slug);
             warnings.push(
-              `Selected skill "$${slug}" was not found in the loadout catalog.`,
+              `Selected skill "$${slug}" was not found in the singlet catalog.`,
             );
             continue;
           }
@@ -649,69 +649,69 @@ export const makeLoadoutService = (
         };
       });
 
-    const dispatchRpc = <M extends LoadoutRpcMethod>(
+    const dispatchRpc = <M extends SingletRpcMethod>(
       method: M,
-      params?: LoadoutRpcParams<M>,
-    ): Effect.Effect<LoadoutRpcResult<M>, LoadoutError> => {
+      params?: SingletRpcParams<M>,
+    ): Effect.Effect<SingletRpcResult<M>, SingletError> => {
       switch (method) {
         case "catalog.get":
-          return getCatalog() as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          return getCatalog() as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "catalog.scan":
           return scanCatalog(params as CatalogScanParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "skill.toggle":
           return toggleSkill(params as SkillToggleParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "skill.consolidate":
           return consolidateSkills(
             params as SkillConsolidateParams,
-          ) as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          ) as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "skill.resolveDrift":
           return resolveDuplicate(
             params as SkillResolveDriftParams,
-          ) as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          ) as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "skill.fixFrontmatter":
           return fixFrontmatter(
             params as SkillFixFrontmatterParams,
-          ) as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          ) as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "skill.get":
           return getSkill(
             (params as { readonly slug: string }).slug,
-          ) as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          ) as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "skill.save":
           return saveSkill(params as SkillSaveParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "target.add":
           return invoke("target.add", params as TargetAddParams).pipe(
             Effect.tap((res) =>
               publishCatalogIfPresent(res.catalog, "target.add"),
             ),
-          ) as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          ) as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "target.remove":
           return removeTarget(params as TargetRemoveParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "target.clone":
           return cloneTarget(params as TargetCloneParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "quarantine.undo":
           return undoLastQuarantine() as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "worktree.hydrate":
           return invoke(
             "worktree.hydrate",
-            params as LoadoutRpcParams<"worktree.hydrate">,
+            params as SingletRpcParams<"worktree.hydrate">,
           ).pipe(
             Effect.tap((res) =>
               PubSub.publish(pubsub, {
@@ -722,30 +722,30 @@ export const makeLoadoutService = (
                 timestamp: nowIso(),
               }),
             ),
-          ) as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          ) as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "profile.list":
-          return listProfiles() as Effect.Effect<LoadoutRpcResult<M>, LoadoutError>;
+          return listProfiles() as Effect.Effect<SingletRpcResult<M>, SingletError>;
         case "profile.save":
           return saveProfile(params as ProfileSaveParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "profile.apply":
           return applyProfile(params as ProfileApplyParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
         case "profile.delete":
           return deleteProfile(params as ProfileDeleteParams) as Effect.Effect<
-            LoadoutRpcResult<M>,
-            LoadoutError
+            SingletRpcResult<M>,
+            SingletError
           >;
       }
     };
 
-    const events: Stream.Stream<LoadoutEvent> = Stream.fromPubSub(pubsub);
+    const events: Stream.Stream<SingletEvent> = Stream.fromPubSub(pubsub);
 
-    const service: LoadoutServiceShape = {
+    const service: SingletServiceShape = {
       getCatalog,
       scanCatalog,
       toggleSkill,
@@ -773,47 +773,47 @@ export const makeLoadoutService = (
   });
 
 /**
- * Default Effect `Layer.scoped` for `LoadoutService`.
- * Reads optional `LoadoutServiceConfig` from context if provided, otherwise uses
- * `LOADOUT_BIN` / `LOADOUT_HOME` environment variables.
+ * Default Effect `Layer.scoped` for `SingletService`.
+ * Reads optional `SingletServiceConfig` from context if provided, otherwise uses
+ * `SINGLET_BIN` / `SINGLET_HOME` environment variables.
  */
-export const LoadoutServiceLive: Layer.Layer<LoadoutService> = Layer.scoped(
-  LoadoutService,
+export const SingletServiceLive: Layer.Layer<SingletService> = Layer.scoped(
+  SingletService,
   Effect.gen(function* () {
-    const maybeConfig = yield* Effect.serviceOption(LoadoutServiceConfig);
+    const maybeConfig = yield* Effect.serviceOption(SingletServiceConfig);
     const config = Option.isSome(maybeConfig) ? maybeConfig.value : {};
-    return yield* makeLoadoutService(config);
+    return yield* makeSingletService(config);
   }),
 );
 
 /**
  * Convenience Layer factory when supplying explicit options directly.
  */
-export const makeLoadoutServiceLayer = (
-  config: LoadoutServiceConfigOptions,
-): Layer.Layer<LoadoutService> =>
-  Layer.scoped(LoadoutService, makeLoadoutService(config));
+export const makeSingletServiceLayer = (
+  config: SingletServiceConfigOptions,
+): Layer.Layer<SingletService> =>
+  Layer.scoped(SingletService, makeSingletService(config));
 
 // ---------------------------------------------------------------------------
 // T3 Code WebSocket Server Bridge Helper
 // ---------------------------------------------------------------------------
 
 export interface T3CodeWsIncomingRpc {
-  readonly method: LoadoutRpcMethod;
+  readonly method: SingletRpcMethod;
   readonly params?: Record<string, unknown>;
 }
 
 /**
  * Creates a lightweight handler for `apps/server` WebSocket routes that
- * forwards `loadout` RPC calls from desktop/browser/mobile T3 Code clients to
- * the host `LoadoutService`.
+ * forwards `singlet` RPC calls from desktop/browser/mobile T3 Code clients to
+ * the host `SingletService`.
  */
-export const handleLoadoutWebSocketRpc = (
+export const handleSingletWebSocketRpc = (
   request: T3CodeWsIncomingRpc,
-): Effect.Effect<unknown, LoadoutError, LoadoutService> =>
-  Effect.flatMap(LoadoutService, (loadout) =>
-    loadout.dispatchRpc(
+): Effect.Effect<unknown, SingletError, SingletService> =>
+  Effect.flatMap(SingletService, (singlet) =>
+    singlet.dispatchRpc(
       request.method,
-      request.params as LoadoutRpcParams<typeof request.method>,
+      request.params as SingletRpcParams<typeof request.method>,
     ),
   );

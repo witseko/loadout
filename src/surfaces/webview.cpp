@@ -8,7 +8,7 @@
 #include <cstring>
 #include <mutex>
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
 namespace {
 
@@ -25,7 +25,7 @@ bool load_sym(void* handle, const char* name, Fn& out) {
 
 } // namespace
 
-#if defined(__APPLE__) && !defined(LOADOUT_FORCE_LINUX_WEBVIEW)
+#if defined(__APPLE__) && !defined(SINGLET_FORCE_LINUX_WEBVIEW)
 
 namespace {
 
@@ -197,19 +197,19 @@ void install_mac_menubar(const MacRuntime& rt, id app, id webview) {
 
     // 1. Application menu
     id app_menu_item = make_menu_item(rt, "", "", "");
-    id app_menu = make_submenu(rt, "loadout");
+    id app_menu = make_submenu(rt, "singlet");
     rt.send<void, id>(app_menu, rt.sel("addItem:"),
-                      make_menu_item(rt, "About loadout", "orderFrontStandardAboutPanel:", ""));
+                      make_menu_item(rt, "About singlet", "orderFrontStandardAboutPanel:", ""));
     add_separator(rt, app_menu);
     rt.send<void, id>(app_menu, rt.sel("addItem:"),
-                      make_menu_item(rt, "Hide loadout", "hide:", "h"));
+                      make_menu_item(rt, "Hide singlet", "hide:", "h"));
     rt.send<void, id>(app_menu, rt.sel("addItem:"),
                       make_menu_item(rt, "Hide Others", "hideOtherApplications:", "h", nullptr, kCmdMask | kOptMask));
     rt.send<void, id>(app_menu, rt.sel("addItem:"),
                       make_menu_item(rt, "Show All", "unhideAllApplications:", ""));
     add_separator(rt, app_menu);
     rt.send<void, id>(app_menu, rt.sel("addItem:"),
-                      make_menu_item(rt, "Quit loadout", "terminate:", "q"));
+                      make_menu_item(rt, "Quit singlet", "terminate:", "q"));
     rt.send<void, id>(app_menu_item, rt.sel("setSubmenu:"), app_menu);
     rt.send<void, id>(menubar, rt.sel("addItem:"), app_menu_item);
 
@@ -250,12 +250,12 @@ void install_mac_menubar(const MacRuntime& rt, id app, id webview) {
 }
 
 Class get_or_register_delegate_class(const MacRuntime& rt) {
-    Class existing = rt.cls("LoadoutNativeAppDelegate");
+    Class existing = rt.cls("SingletNativeAppDelegate");
     if (existing) {
         return existing;
     }
     Class ns_object = rt.cls("NSObject");
-    Class delegate_cls = rt.alloc_class_pair(ns_object, "LoadoutNativeAppDelegate", 0);
+    Class delegate_cls = rt.alloc_class_pair(ns_object, "SingletNativeAppDelegate", 0);
     if (!delegate_cls) {
         return nullptr;
     }
@@ -273,7 +273,7 @@ Class get_or_register_delegate_class(const MacRuntime& rt) {
     void* stop_imp = nullptr;
     auto stop_fn = &mac_stop_from_signal;
     std::memcpy(&stop_imp, &stop_fn, sizeof(stop_imp));
-    rt.add_method(delegate_cls, rt.sel("loadoutStopRunLoop:"), stop_imp, "v@:@");
+    rt.add_method(delegate_cls, rt.sel("singletStopRunLoop:"), stop_imp, "v@:@");
 
     rt.register_class_pair(delegate_cls);
     return delegate_cls;
@@ -331,7 +331,7 @@ NativeWindowResult run_native_window(const NativeWindowOptions& opts) {
     rt.send<void, id>(window, rt.sel("setDelegate:"), delegate);
 
     if (opts.dark_titlebar) {
-        // Match loadout's #0B0D10 dark surface to prevent any white flash on startup
+        // Match singlet's #0B0D10 dark surface to prevent any white flash on startup
         id bg = rt.send<id, double, double, double, double>(
             rt.cls("NSColor"),
             rt.sel("colorWithSRGBRed:green:blue:alpha:"),
@@ -379,7 +379,7 @@ NativeWindowResult run_native_window(const NativeWindowOptions& opts) {
 
     install_mac_menubar(rt, app, webview);
 
-    // Load local loadout URL
+    // Load local singlet URL
     id nsurl = rt.send<id, id>(rt.cls("NSURL"), rt.sel("URLWithString:"), rt.nsstring(opts.url.c_str()));
     id req = rt.send<id, id>(rt.cls("NSURLRequest"), rt.sel("requestWithURL:"), nsurl);
     rt.send<id, id>(webview, rt.sel("loadRequest:"), req);
@@ -423,7 +423,7 @@ void request_native_window_close() {
     g_mac_rt.send<void, SEL, id, ObjcBool>(
         g_mac_delegate,
         g_mac_rt.sel("performSelectorOnMainThread:withObject:waitUntilDone:"),
-        g_mac_rt.sel("loadoutStopRunLoop:"),
+        g_mac_rt.sel("singletStopRunLoop:"),
         nullptr,
         static_cast<ObjcBool>(0));
 }
@@ -628,4 +628,4 @@ void request_native_window_close() {
 
 #endif
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

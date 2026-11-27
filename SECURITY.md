@@ -12,9 +12,9 @@ Only the latest release gets security fixes.
 
 Do not open a public issue for a security problem.
 
-Report it privately through GitHub: open the [Security tab](https://github.com/witseko/loadout/security) and click **Report a vulnerability**. Include:
+Report it privately through GitHub: open the [Security tab](https://github.com/witseko/singlet/security) and click **Report a vulnerability**. Include:
 
-- The `loadout` version (`loadout --version`) and your OS.
+- The `singlet` version (`singlet --version`) and your OS.
 - The steps to reproduce the problem.
 - What an attacker can do with it.
 
@@ -24,8 +24,8 @@ You get a first reply within 7 days. When a fix is ready, it ships in a new rele
 
 These areas matter most:
 
-- **File system safety.** `loadout` moves folders, creates symlinks, and restores quarantine batches. A path that escapes `~/.agents` or a target folder, or a way to lose user data, is a vulnerability.
-- **Local UI server.** `loadout ui` binds to `127.0.0.1` and has no authentication. A way for a web page or another host to read or change skills through it is a vulnerability.
-- **RPC and MCP servers.** Input on stdin that makes `loadout` write outside its folders, or crash on malformed JSON, is in scope.
+- **File system safety.** `singlet` moves folders, creates symlinks, and restores quarantine batches. A path that escapes `~/.agents` or a target folder, or a way to lose user data, is a vulnerability.
+- **Local UI server.** `singlet ui` binds to `127.0.0.1` and has no authentication. A way for a web page or another host to read or change skills through it is a vulnerability.
+- **RPC and MCP servers.** Input on stdin that makes `singlet` write outside its folders, or crash on malformed JSON, is in scope.
 
 Out of scope: problems that need an attacker who already has write access to your home folder, and running the UI server on a port that you expose to other machines on purpose.

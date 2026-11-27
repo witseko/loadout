@@ -1,7 +1,7 @@
 /**
- * @loadout/t3code-plugin: Stdio JSON-RPC 2.0 Client (`loadout rpc`)
+ * @singlet/t3code-plugin: Stdio JSON-RPC 2.0 Client (`singlet rpc`)
  *
- * Spawns the native `loadout rpc` daemon over `stdin`/`stdout`, multiplexes
+ * Spawns the native `singlet rpc` daemon over `stdin`/`stdout`, multiplexes
  * concurrent JSON-RPC 2.0 requests by numeric `id`, dispatches server
  * notifications, and terminates cleanly on shutdown.
  *
@@ -14,13 +14,13 @@ import type {
   JsonRpcNotification,
   JsonRpcRequest,
   JsonRpcResponse,
-  LoadoutRpcMethod,
-  LoadoutRpcParams,
-  LoadoutRpcResult,
+  SingletRpcMethod,
+  SingletRpcParams,
+  SingletRpcResult,
 } from "../protocol.js";
 import { isJsonRpcErrorResponse } from "../protocol.js";
 
-export type LoadoutRpcErrorCode =
+export type SingletRpcErrorCode =
   | "SPAWN_FAILED"
   | "RPC_ERROR"
   | "TIMEOUT"
@@ -28,15 +28,15 @@ export type LoadoutRpcErrorCode =
   | "PROTOCOL_ERROR"
   | "WRITE_FAILED";
 
-export class LoadoutRpcError extends Error {
-  readonly code: LoadoutRpcErrorCode;
+export class SingletRpcError extends Error {
+  readonly code: SingletRpcErrorCode;
   readonly rpcCode?: number;
   readonly method?: string;
   readonly data?: unknown;
   override readonly cause?: unknown;
 
   constructor(
-    code: LoadoutRpcErrorCode,
+    code: SingletRpcErrorCode,
     message: string,
     options?: {
       rpcCode?: number;
@@ -46,7 +46,7 @@ export class LoadoutRpcError extends Error {
     },
   ) {
     super(message);
-    this.name = "LoadoutRpcError";
+    this.name = "SingletRpcError";
     this.code = code;
     this.rpcCode = options?.rpcCode;
     this.method = options?.method;
@@ -55,29 +55,29 @@ export class LoadoutRpcError extends Error {
   }
 }
 
-export interface LoadoutRpcClientOptions {
-  /** Path to the `loadout` native binary (defaults to `process.env.LOADOUT_BIN ?? "loadout"`). */
+export interface SingletRpcClientOptions {
+  /** Path to the `singlet` native binary (defaults to `process.env.SINGLET_BIN ?? "singlet"`). */
   readonly binaryPath?: string;
-  /** Optional `LOADOUT_HOME` override passed via both `--home` flag and `LOADOUT_HOME` env var. */
-  readonly loadoutHome?: string;
+  /** Optional `SINGLET_HOME` override passed via both `--home` flag and `SINGLET_HOME` env var. */
+  readonly singletHome?: string;
   /** Additional CLI arguments placed before `rpc`. */
   readonly extraArgs?: readonly string[];
   /** Additional environment variables merged with `process.env`. */
   readonly env?: Readonly<Record<string, string | undefined>>;
-  /** Working directory for the spawned `loadout rpc` process. */
+  /** Working directory for the spawned `singlet rpc` process. */
   readonly cwd?: string;
   /** Default per-request timeout in milliseconds (default: 15000). */
   readonly requestTimeoutMs?: number;
   /** Graceful shutdown wait before sending SIGTERM/SIGKILL (default: 1500). */
   readonly shutdownTimeoutMs?: number;
-  /** Optional hook receiving each stderr line emitted by `loadout rpc`. */
+  /** Optional hook receiving each stderr line emitted by `singlet rpc`. */
   readonly onStderr?: (line: string) => void;
 }
 
 interface PendingRequest {
   readonly method: string;
   readonly resolve: (value: unknown) => void;
-  readonly reject: (err: LoadoutRpcError) => void;
+  readonly reject: (err: SingletRpcError) => void;
   readonly timer: ReturnType<typeof setTimeout>;
 }
 
@@ -97,11 +97,11 @@ export type ExitListener = (info: {
   readonly code: number | null;
   readonly signal: NodeJS.Signals | null;
 }) => void;
-export type ErrorListener = (error: LoadoutRpcError) => void;
+export type ErrorListener = (error: SingletRpcError) => void;
 
-export class LoadoutRpcClient {
+export class SingletRpcClient {
   readonly binaryPath: string;
-  readonly loadoutHome?: string;
+  readonly singletHome?: string;
 
   private readonly requestTimeoutMs: number;
   private readonly shutdownTimeoutMs: number;
@@ -118,15 +118,15 @@ export class LoadoutRpcClient {
   private readonly errorListeners = new Set<ErrorListener>();
   private closePromise: Promise<void> | undefined;
 
-  constructor(options: LoadoutRpcClientOptions = {}) {
-    this.binaryPath = options.binaryPath ?? process.env.LOADOUT_BIN ?? "loadout";
-    this.loadoutHome = options.loadoutHome ?? process.env.LOADOUT_HOME;
+  constructor(options: SingletRpcClientOptions = {}) {
+    this.binaryPath = options.binaryPath ?? process.env.SINGLET_BIN ?? "singlet";
+    this.singletHome = options.singletHome ?? process.env.SINGLET_HOME;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 15_000;
     this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 1_500;
 
     const args: string[] = [];
-    if (this.loadoutHome) {
-      args.push("--home", this.loadoutHome);
+    if (this.singletHome) {
+      args.push("--home", this.singletHome);
     }
     if (options.extraArgs && options.extraArgs.length > 0) {
       args.push(...options.extraArgs);
@@ -137,8 +137,8 @@ export class LoadoutRpcClient {
       ...process.env,
       ...options.env,
     };
-    if (this.loadoutHome) {
-      env.LOADOUT_HOME = this.loadoutHome;
+    if (this.singletHome) {
+      env.SINGLET_HOME = this.singletHome;
     }
 
     this.child = spawn(this.binaryPath, args, {
@@ -164,7 +164,7 @@ export class LoadoutRpcClient {
     });
 
     this.child.on("error", (err) => {
-      const rpcErr = new LoadoutRpcError(
+      const rpcErr = new SingletRpcError(
         "SPAWN_FAILED",
         `Failed to spawn "${this.binaryPath} ${args.join(" ")}": ${err.message}`,
         { cause: err },
@@ -178,9 +178,9 @@ export class LoadoutRpcClient {
 
     this.child.on("exit", (code, signal) => {
       this.exited = true;
-      const err = new LoadoutRpcError(
+      const err = new SingletRpcError(
         "CLOSED",
-        `loadout rpc process exited (code=${code ?? "null"}, signal=${signal ?? "null"})`,
+        `singlet rpc process exited (code=${code ?? "null"}, signal=${signal ?? "null"})`,
       );
       this.rejectAllPending(err);
       for (const listener of this.exitListeners) {
@@ -228,16 +228,16 @@ export class LoadoutRpcClient {
   }
 
   /**
-   * Sends a strongly typed JSON-RPC 2.0 request to `loadout rpc` and awaits its
+   * Sends a strongly typed JSON-RPC 2.0 request to `singlet rpc` and awaits its
    * correlated response.
    */
-  call<M extends LoadoutRpcMethod>(
+  call<M extends SingletRpcMethod>(
     method: M,
-    params?: LoadoutRpcParams<M>,
+    params?: SingletRpcParams<M>,
     timeoutMs?: number,
-  ): Promise<LoadoutRpcResult<M>> {
+  ): Promise<SingletRpcResult<M>> {
     return this.callRaw(method, params ?? {}, timeoutMs) as Promise<
-      LoadoutRpcResult<M>
+      SingletRpcResult<M>
     >;
   }
 
@@ -251,9 +251,9 @@ export class LoadoutRpcClient {
   ): Promise<unknown> {
     if (this.closed || this.exited) {
       return Promise.reject(
-        new LoadoutRpcError(
+        new SingletRpcError(
           "CLOSED",
-          `Cannot invoke "${method}": loadout rpc client is closed`,
+          `Cannot invoke "${method}": singlet rpc client is closed`,
           { method },
         ),
       );
@@ -271,9 +271,9 @@ export class LoadoutRpcClient {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(
-          new LoadoutRpcError(
+          new SingletRpcError(
             "TIMEOUT",
-            `loadout rpc request "${method}" (id=${id}) timed out after ${timeoutMs}ms`,
+            `singlet rpc request "${method}" (id=${id}) timed out after ${timeoutMs}ms`,
             { method },
           ),
         );
@@ -290,9 +290,9 @@ export class LoadoutRpcClient {
             clearTimeout(entry.timer);
             this.pending.delete(id);
             entry.reject(
-              new LoadoutRpcError(
+              new SingletRpcError(
                 "WRITE_FAILED",
-                `Failed writing "${method}" to loadout rpc stdin: ${writeErr.message}`,
+                `Failed writing "${method}" to singlet rpc stdin: ${writeErr.message}`,
                 { method, cause: writeErr },
               ),
             );
@@ -303,7 +303,7 @@ export class LoadoutRpcClient {
   }
 
   /**
-   * Gracefully shuts down `loadout rpc`: closes stdin, waits briefly for clean exit,
+   * Gracefully shuts down `singlet rpc`: closes stdin, waits briefly for clean exit,
    * and escalates to SIGTERM / SIGKILL if the child does not exit promptly.
    */
   close(): Promise<void> {
@@ -313,7 +313,7 @@ export class LoadoutRpcClient {
 
     this.closed = true;
     this.rejectAllPending(
-      new LoadoutRpcError("CLOSED", "loadout rpc client shutting down"),
+      new SingletRpcError("CLOSED", "singlet rpc client shutting down"),
     );
 
     this.closePromise = new Promise<void>((resolve) => {
@@ -380,9 +380,9 @@ export class LoadoutRpcClient {
     try {
       parsed = JSON.parse(line);
     } catch (err) {
-      const protocolErr = new LoadoutRpcError(
+      const protocolErr = new SingletRpcError(
         "PROTOCOL_ERROR",
-        `Invalid JSON frame from loadout rpc: ${line.slice(0, 160)}`,
+        `Invalid JSON frame from singlet rpc: ${line.slice(0, 160)}`,
         { cause: err },
       );
       for (const listener of this.errorListeners) {
@@ -434,7 +434,7 @@ export class LoadoutRpcClient {
     const response = parsed as JsonRpcResponse<unknown>;
     if (isJsonRpcErrorResponse(response)) {
       entry.reject(
-        new LoadoutRpcError("RPC_ERROR", response.error.message, {
+        new SingletRpcError("RPC_ERROR", response.error.message, {
           rpcCode: response.error.code,
           method: entry.method,
           data: response.error.data,
@@ -446,7 +446,7 @@ export class LoadoutRpcClient {
     entry.resolve(response.result);
   }
 
-  private rejectAllPending(err: LoadoutRpcError): void {
+  private rejectAllPending(err: SingletRpcError): void {
     for (const [, entry] of this.pending) {
       clearTimeout(entry.timer);
       entry.reject(err);

@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in loadout does not work as documented.
+description: Something in singlet does not work as documented.
 labels: [bug]
 body:
   - type: markdown
@@ -9,9 +9,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: loadout version
-      description: Output of `loadout --version`.
-      placeholder: loadout 0.1.0
+      label: singlet version
+      description: Output of `singlet --version`.
+      placeholder: singlet 0.1.0
     validations:
       required: true
   - type: dropdown
@@ -29,8 +29,8 @@ body:
       label: Where does it happen?
       options:
         - CLI
-        - Browser or desktop UI (loadout ui)
-        - Terminal UI (loadout tui)
+        - Browser or desktop UI (singlet ui)
+        - Terminal UI (singlet tui)
         - MCP server
         - JSON-RPC server
         - T3 Code plugin
@@ -42,7 +42,7 @@ body:
       label: Steps to reproduce
       description: If you can, reproduce it with `--home <tmp-dir>` and include the commands.
       placeholder: |
-        1. loadout --home /tmp/sandbox scan
+        1. singlet --home /tmp/sandbox scan
         2. ...
     validations:
       required: true

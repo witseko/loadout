@@ -33,7 +33,7 @@ struct TempDir {
     std::filesystem::path path;
 
     TempDir() {
-        std::string tmpl = "/tmp/loadout_test_util_XXXXXX";
+        std::string tmpl = "/tmp/singlet_test_util_XXXXXX";
         char* dir = ::mkdtemp(tmpl.data());
         if (!dir) {
             throw std::runtime_error("mkdtemp failed");
@@ -54,14 +54,14 @@ void write_text_file(const std::filesystem::path& p, std::string_view content) {
 }
 
 void test_json() {
-    using namespace loadout::util;
+    using namespace singlet::util;
 
     // Basic construction & ergonomic helpers.
     JsonValue root = JsonValue::object();
     root["version"] = 1;
     root["enabled"] = true;
     root["ratio"] = 3.25;
-    root["name"] = "loadout";
+    root["name"] = "singlet";
     root["empty"] = nullptr;
     root["count"] = size_t{42};
     root["tags"] = JsonValue::array({"testing", "browser"});
@@ -75,7 +75,7 @@ void test_json() {
     CHECK(root.get_bool("enabled") == true);
     CHECK(root.get_bool("missing", true) == true);
     CHECK(root.get_double("ratio") == 3.25);
-    CHECK(root.get_str("name") == "loadout");
+    CHECK(root.get_str("name") == "singlet");
     CHECK(root.get_str("missing", "fallback") == "fallback");
     CHECK(root["empty"].is_null());
     CHECK(root["tags"].is_array());
@@ -148,7 +148,7 @@ void test_json() {
 }
 
 void test_sha256_and_tree() {
-    using namespace loadout::util;
+    using namespace singlet::util;
 
     // NIST FIPS 180-4 test vectors.
     CHECK(sha256_str("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
@@ -218,7 +218,7 @@ void test_sha256_and_tree() {
 }
 
 void test_diff() {
-    using namespace loadout::util;
+    using namespace singlet::util;
 
     // Identical inputs -> empty diff.
     CHECK(unified_diff("a\nb\nc\n", "a\nb\nc\n", "left", "right").empty());
@@ -256,7 +256,7 @@ void test_diff() {
 }
 
 void test_frontmatter() {
-    using namespace loadout::util;
+    using namespace singlet::util;
 
     // 1. Valid Antigravity frontmatter with inline tags.
     const std::string valid_md =

@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace loadout::util {
+namespace singlet::util {
 
 namespace {
 
@@ -343,4 +343,4 @@ TreeDigest hash_skill_tree(const std::filesystem::path& dir) {
     return result;
 }
 
-} // namespace loadout::util
+} // namespace singlet::util

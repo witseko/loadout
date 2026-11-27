@@ -12,7 +12,7 @@
 
 #include "util/json.hpp"
 
-namespace loadout::core {
+namespace singlet::core {
 
 namespace fs = std::filesystem;
 
@@ -140,7 +140,7 @@ void collect_plugin_skill_dirs(const fs::path& plugins_dir, std::vector<fs::path
 }
 
 void extract_string_paths(
-    const loadout::util::JsonValue& val,
+    const singlet::util::JsonValue& val,
     const fs::path& base_dir,
     const fs::path& home_dir,
     std::vector<fs::path>& out) {
@@ -254,10 +254,10 @@ fs::path resolve_home_dir(const fs::path& explicit_home) {
         auto abs = fs::absolute(explicit_home, ec);
         return ec ? explicit_home : abs.lexically_normal();
     }
-    if (const char* loadout_home = std::getenv("LOADOUT_HOME"); loadout_home && *loadout_home != '\0') {
+    if (const char* singlet_home = std::getenv("SINGLET_HOME"); singlet_home && *singlet_home != '\0') {
         std::error_code ec;
-        auto abs = fs::absolute(fs::path(loadout_home), ec);
-        return ec ? fs::path(loadout_home) : abs.lexically_normal();
+        auto abs = fs::absolute(fs::path(singlet_home), ec);
+        return ec ? fs::path(singlet_home) : abs.lexically_normal();
     }
     if (const char* home = std::getenv("HOME"); home && *home != '\0') {
         return fs::path(home).lexically_normal();
@@ -301,7 +301,7 @@ std::vector<fs::path> parse_opencode_custom_skill_paths(
         std::string text = read_file_text(cfg);
         if (text.empty()) continue;
 
-        auto parsed = loadout::util::parse_jsonc(text);
+        auto parsed = singlet::util::parse_jsonc(text);
         if (!parsed || !parsed->is_object()) continue;
 
         std::vector<fs::path> raw_paths;
@@ -618,4 +618,4 @@ void merge_targets(
     std::sort(out_unconfigured_siblings.begin(), out_unconfigured_siblings.end(), target_less);
 }
 
-}  // namespace loadout::core
+}  // namespace singlet::core

@@ -600,7 +600,7 @@
     return false;
   }
 
-  class LoadoutSwitchboard extends HTMLElement {
+  class SingletSwitchboard extends HTMLElement {
     static get observedAttributes() {
       return ['mode', 'theme', 'active-target', 'worktree-path', 'repo-name', 'scope'];
     }
@@ -666,7 +666,7 @@
     connectedCallback() {
       if (!this.getAttribute('mode')) this.setAttribute('mode', 'standalone');
       try {
-        const savedTheme = localStorage.getItem('loadout-theme');
+        const savedTheme = localStorage.getItem('singlet-theme');
         if (savedTheme && !this.getAttribute('theme') && !this.isEmbedded) {
           document.documentElement.dataset.theme = savedTheme;
         }
@@ -712,7 +712,7 @@
         this.unsub();
         this.unsub = null;
       }
-      const ext = this._customTransport || (typeof window !== 'undefined' ? window.LOADOUT_TRANSPORT : null);
+      const ext = this._customTransport || (typeof window !== 'undefined' ? window.SINGLET_TRANSPORT : null);
       this._api = wrapTransport(ext);
       this.state.connected = Boolean(ext);
       this.unsub = this._api.subscribe((ev) => {
@@ -990,7 +990,7 @@
           const res = await this._api.manageProfile({ action: 'save', name: name.trim() });
           if (res && res.catalog) this.state.catalog = normalizeCatalog(res.catalog);
           else await this.loadCatalog({ silent: true });
-          this.showToast(`Saved profile "${name.trim()}"`, { mono: '~/.agents/loadout.lock.json' });
+          this.showToast(`Saved profile "${name.trim()}"`, { mono: '~/.agents/singlet.lock.json' });
           this._renderAll();
         } catch (err) {
           this.showToast(`Save profile failed: ${err.message}`);
@@ -1525,7 +1525,7 @@
           const cur = (this.getAttribute('theme') || document.documentElement.dataset.theme || 'dark') === 'dark' ? 'light' : 'dark';
           document.documentElement.dataset.theme = cur;
           this.setAttribute('theme', cur);
-          try { localStorage.setItem('loadout-theme', cur); } catch { /* noop */ }
+          try { localStorage.setItem('singlet-theme', cur); } catch { /* noop */ }
           break;
         }
         case 'help':
@@ -1686,7 +1686,7 @@
           this.triggerWorktreeHydrate();
           break;
         case 'emb-open-full':
-          this.dispatchEvent(new CustomEvent('loadout-open-full', { bubbles: true, composed: true }));
+          this.dispatchEvent(new CustomEvent('singlet-open-full', { bubbles: true, composed: true }));
           break;
         default:
           break;
@@ -1749,7 +1749,7 @@
       slot.innerHTML = `
         <header class="sk-header">
           <div class="brand">
-            <b>l<i>o</i>adout</b>
+            <b>s<i>i</i>nglet</b>
             <span class="live-dot ${this.state.connected ? '' : 'off'}" title="${this.state.connected ? 'Live SSE synced' : 'Local mode'}"></span>
           </div>
           <div class="seg" role="group" aria-label="Workspace view">
@@ -2078,7 +2078,7 @@
         <div class="card safety">
           <span>dry run: nothing has changed yet</span>
           <span>superseded copies go to ~/.agents/quarantine/, never rm -rf</span>
-          <span>loadout undo restores everything</span>
+          <span>singlet undo restores everything</span>
           <span>repo skills default to project-local</span>
         </div>
         <div style="height:12px"></div>
@@ -2142,7 +2142,7 @@
           <div class="card" style="padding:14px;margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="flex:1">
               <div style="font-weight:600">Consolidation complete. Your laptop has one source of truth.</div>
-              <div class="mono faint">quarantine ${esc(w.receipt || '~/.agents/quarantine/')} · run <span class="dim">loadout undo</span> to roll back</div>
+              <div class="mono faint">quarantine ${esc(w.receipt || '~/.agents/quarantine/')} · run <span class="dim">singlet undo</span> to roll back</div>
             </div>
             ${this.state.catalog.canUndo ? '<button class="btn" data-action="undo">Undo consolidation</button>' : ''}
             <button class="btn primary" data-action="view" data-v="board">Open Switchboard \u2192</button>
@@ -2168,7 +2168,7 @@
           <header>
             <div style="display:flex;align-items:center;gap:8px">
               <b>Skills</b>
-              <span class="tagname">&lt;loadout-switchboard mode="embedded"&gt;</span>
+              <span class="tagname">&lt;singlet-switchboard mode="embedded"&gt;</span>
               <span class="spacer"></span>
               <button class="btn sm ghost" data-action="scan" title="Rescan">\u21bb</button>
             </div>
@@ -2399,7 +2399,7 @@
             </div>
           </div>
           <div class="ov-foot">
-            <span class="hint">Reversible with loadout undo.</span>
+            <span class="hint">Reversible with singlet undo.</span>
             <div class="spacer"></div>
             <button class="btn" data-action="close">Cancel</button>
             <button class="btn primary" data-action="resolve" ${ov.busy ? 'disabled' : ''}>${ov.busy ? 'Consolidating...' : 'Consolidate & wire all'}</button>
@@ -2419,7 +2419,7 @@
           : a.initial === 'profile'
             ? `ln -s ${this.state.catalog.canonicalRoot}/<slug> ${cleanPath}/  (active profile)`
             : '# start empty: no symlinks created yet',
-        `loadout target add ${slugify(a.id || a.name) || '<id>'} "${cleanPath}" --kind ${a.adapter}${a.env ? ` --env "${a.env}"` : ''}`,
+        `singlet target add ${slugify(a.id || a.name) || '<id>'} "${cleanPath}" --kind ${a.adapter}${a.env ? ` --env "${a.env}"` : ''}`,
       ] : ['# fill in a skills directory path to preview filesystem changes'];
       return cmds.map((c) => `<div class="${c.startsWith('#') ? 'faint' : ''}">${c.startsWith('#') ? '' : '<span class="faint">$ </span>'}${esc(c)}</div>`).join('');
     }
@@ -2704,7 +2704,7 @@
     }
   }
 
-  if (!customElements.get('loadout-switchboard')) {
-    customElements.define('loadout-switchboard', LoadoutSwitchboard);
+  if (!customElements.get('singlet-switchboard')) {
+    customElements.define('singlet-switchboard', SingletSwitchboard);
   }
 })();

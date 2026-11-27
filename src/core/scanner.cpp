@@ -21,7 +21,7 @@
 #include "util/frontmatter.hpp"
 #include "util/sha256.hpp"
 
-namespace loadout::core {
+namespace singlet::core {
 
 namespace fs = std::filesystem;
 
@@ -157,8 +157,8 @@ int64_t get_dir_mtime_epoch(const fs::path& dir, const fs::path& skill_md) {
 }
 
 struct CachedSkillMeta {
-    loadout::util::TreeDigest digest;
-    loadout::util::FrontmatterInfo frontmatter;
+    singlet::util::TreeDigest digest;
+    singlet::util::FrontmatterInfo frontmatter;
     int64_t mtime_epoch = 0;
     bool valid = false;
 };
@@ -179,8 +179,8 @@ public:
         if (!skill_md.empty()) {
             meta.valid = true;
             std::string content = read_small_file(skill_md);
-            meta.frontmatter = loadout::util::parse_skill_markdown(content, slug);
-            meta.digest = loadout::util::hash_skill_tree(real_dir);
+            meta.frontmatter = singlet::util::parse_skill_markdown(content, slug);
+            meta.digest = singlet::util::hash_skill_tree(real_dir);
             meta.mtime_epoch = get_dir_mtime_epoch(real_dir, skill_md);
         }
 
@@ -220,7 +220,7 @@ void scan_skills_container(
         if (name == "." || name == ".." || name == ".DS_Store" || name == "Thumbs.db") {
             continue;
         }
-        if (name.starts_with(".loadout-tmp-")) {
+        if (name.starts_with(".singlet-tmp-")) {
             continue;
         }
 
@@ -620,4 +620,4 @@ ScanResult scan_filesystem(const ScanOptions& options) {
     return result;
 }
 
-}  // namespace loadout::core
+}  // namespace singlet::core

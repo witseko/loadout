@@ -35,11 +35,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check that the tag matches LOADOUT_VERSION
+      - name: Check that the tag matches SINGLET_VERSION
         run: |
-          source_version=$(sed -n 's/.*LOADOUT_VERSION = "\(.*\)";/\1/p' src/surfaces/cli.hpp)
+          source_version=$(sed -n 's/.*SINGLET_VERSION = "\(.*\)";/\1/p' src/surfaces/cli.hpp)
           if [[ "v$source_version" != "$TAG" ]]; then
-            echo "Tag $TAG does not match LOADOUT_VERSION $source_version in src/surfaces/cli.hpp" >&2
+            echo "Tag $TAG does not match SINGLET_VERSION $source_version in src/surfaces/cli.hpp" >&2
             exit 1
           fi
 
@@ -51,19 +51,19 @@ jobs:
 
       - name: Smoke test
         run: |
-          ./bin/loadout --version
-          [[ "$(./bin/loadout --version)" == "loadout ${TAG#v}" ]]
+          ./bin/singlet --version
+          [[ "$(./bin/singlet --version)" == "singlet ${TAG#v}" ]]
 
       - name: Package
         run: |
-          package="loadout-${TAG}-${{ matrix.os }}-${{ matrix.arch }}"
+          package="singlet-${TAG}-${{ matrix.os }}-${{ matrix.arch }}"
           mkdir -p "dist/$package"
-          cp bin/loadout LICENSE README.md "dist/$package/"
+          cp bin/singlet LICENSE README.md "dist/$package/"
           tar -C dist -czf "dist/$package.tar.gz" "$package"
 
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: loadout-${{ matrix.os }}-${{ matrix.arch }}
+          name: singlet-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*.tar.gz
           if-no-files-found: error
           retention-days: 7
@@ -93,7 +93,7 @@ jobs:
 
       - name: Write checksums
         working-directory: dist
-        run: sha256sum loadout-*.tar.gz > SHA256SUMS
+        run: sha256sum singlet-*.tar.gz > SHA256SUMS
 
       - name: Extract release notes from CHANGELOG.md
         run: |
@@ -113,5 +113,5 @@ jobs:
         run: |
           gh release create "$TAG" dist/*.tar.gz dist/SHA256SUMS \
             --verify-tag \
-            --title "loadout $TAG" \
+            --title "singlet $TAG" \
             --notes-file release-notes.md

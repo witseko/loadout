@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace loadout::util {
+namespace singlet::util {
 
 /// Edit operation type for a single line in a diff script.
 enum class DiffOp {
@@ -39,4 +39,4 @@ struct DiffLine {
     int context_lines = 3
 );
 
-} // namespace loadout::util
+} // namespace singlet::util

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace loadout::util {
+namespace singlet::util {
 
 namespace {
 
@@ -339,4 +339,4 @@ std::string unified_diff(
     return out;
 }
 
-} // namespace loadout::util
+} // namespace singlet::util

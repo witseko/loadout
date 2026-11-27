@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace loadout::util {
+namespace singlet::util {
 
 namespace {
 
@@ -710,4 +710,4 @@ std::string fix_skill_frontmatter(std::string_view content, std::string_view fol
     return out;
 }
 
-} // namespace loadout::util
+} // namespace singlet::util

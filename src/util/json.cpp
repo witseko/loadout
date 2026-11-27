@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <tuple>
 
-namespace loadout::util {
+namespace singlet::util {
 
 namespace {
 
@@ -793,4 +793,4 @@ std::string to_json(const JsonValue& val, bool pretty, int indent_spaces) {
     return out;
 }
 
-} // namespace loadout::util
+} // namespace singlet::util

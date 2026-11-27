@@ -5,7 +5,7 @@
 
 #include "core/types.hpp"
 
-namespace loadout::core {
+namespace singlet::core {
 
 /// Output of target auto-discovery, including plugin shadow and OpenCode custom skill roots.
 struct DiscoveredTargets {
@@ -20,7 +20,7 @@ struct DiscoveredTargets {
 /// ~/.zcode*, and ~/.codeium/windsurf*.
 [[nodiscard]] DiscoveredTargets discover_targets(const std::filesystem::path& home_dir);
 
-/// Merges persisted targets from loadout.lock.json with freshly discovered targets.
+/// Merges persisted targets from singlet.lock.json with freshly discovered targets.
 /// Populates out_targets and out_unconfigured_siblings (siblings detected on disk
 /// without a skills/ directory yet).
 void merge_targets(
@@ -34,4 +34,4 @@ void merge_targets(
     const std::filesystem::path& opencode_config_dir,
     const std::filesystem::path& home_dir);
 
-}  // namespace loadout::core
+}  // namespace singlet::core

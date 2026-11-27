@@ -3,13 +3,13 @@ import { test as base } from '@playwright/test';
 import { Sandbox } from './sandbox.js';
 import { startUiServer, type UiServer } from './ui-server.js';
 
-interface LoadoutFixtures {
+interface SingletFixtures {
   sandbox: Sandbox;
-  /** Starts `loadout ui` for the test's sandbox. Call it after seeding skills. */
+  /** Starts `singlet ui` for the test's sandbox. Call it after seeding skills. */
   startUi: () => Promise<UiServer>;
 }
 
-export const test = base.extend<LoadoutFixtures>({
+export const test = base.extend<SingletFixtures>({
   sandbox: async ({}, use) => {
     const sandbox = new Sandbox();
     await use(sandbox);

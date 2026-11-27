@@ -1,9 +1,9 @@
 /**
- * @loadout/t3code-plugin: Wire Protocol & Domain Types
+ * @singlet/t3code-plugin: Wire Protocol & Domain Types
  *
  * Exact TypeScript types, JSON-RPC 2.0 request/response envelopes,
  * browser transport contract, and environment-to-target resolution helpers
- * aligned with `loadout rpc` and `<loadout-switchboard>`.
+ * aligned with `singlet rpc` and `<singlet-switchboard>`.
  */
 
 // ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ export function normalizeSkillSlug(raw: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Catalog Snapshot Types (matches `loadout::core::to_catalog_json`)
+// Catalog Snapshot Types (matches `singlet::core::to_catalog_json`)
 // ---------------------------------------------------------------------------
 
 export interface FrontmatterInfo {
@@ -255,10 +255,10 @@ export function isJsonRpcErrorResponse(
 }
 
 // ---------------------------------------------------------------------------
-// `loadout rpc` Method Contracts (1-to-1 with `src/surfaces/rpc.cpp`)
+// `singlet rpc` Method Contracts (1-to-1 with `src/surfaces/rpc.cpp`)
 // ---------------------------------------------------------------------------
 
-export const LOADOUT_RPC_METHODS = [
+export const SINGLET_RPC_METHODS = [
   "catalog.get",
   "catalog.scan",
   "skill.toggle",
@@ -278,7 +278,7 @@ export const LOADOUT_RPC_METHODS = [
   "profile.delete",
 ] as const;
 
-export type LoadoutRpcMethod = (typeof LOADOUT_RPC_METHODS)[number];
+export type SingletRpcMethod = (typeof SINGLET_RPC_METHODS)[number];
 
 export interface CatalogGetParams {}
 
@@ -531,7 +531,7 @@ export interface WorktreeHydrateResult {
   readonly excludeFile?: string;
 }
 
-export interface LoadoutRpcContract {
+export interface SingletRpcContract {
   "catalog.get": {
     params: CatalogGetParams;
     result: CatalogSnapshot;
@@ -602,14 +602,14 @@ export interface LoadoutRpcContract {
   };
 }
 
-export type LoadoutRpcParams<M extends LoadoutRpcMethod> = LoadoutRpcContract[M]["params"];
-export type LoadoutRpcResult<M extends LoadoutRpcMethod> = LoadoutRpcContract[M]["result"];
+export type SingletRpcParams<M extends SingletRpcMethod> = SingletRpcContract[M]["params"];
+export type SingletRpcResult<M extends SingletRpcMethod> = SingletRpcContract[M]["result"];
 
 // ---------------------------------------------------------------------------
 // Reactive Event Stream Types
 // ---------------------------------------------------------------------------
 
-export type LoadoutEvent =
+export type SingletEvent =
   | {
       readonly type: "catalog.updated";
       readonly catalog: CatalogSnapshot;
@@ -647,19 +647,19 @@ export type LoadoutEvent =
       readonly timestamp: string;
     };
 
-export type LoadoutCatalogEvent = LoadoutEvent;
+export type SingletCatalogEvent = SingletEvent;
 
 /**
- * Event shape consumed directly by `<loadout-switchboard>`'s `transport.subscribe`.
+ * Event shape consumed directly by `<singlet-switchboard>`'s `transport.subscribe`.
  */
-export type LoadoutSwitchboardEvent =
+export type SingletSwitchboardEvent =
   | { readonly type: "catalog"; readonly data: CatalogSnapshot }
   | { readonly type: "connection"; readonly connected: boolean }
   | { readonly type: "refresh" };
 
 export function toSwitchboardEvent(
-  event: LoadoutEvent | LoadoutSwitchboardEvent,
-): LoadoutSwitchboardEvent | undefined {
+  event: SingletEvent | SingletSwitchboardEvent,
+): SingletSwitchboardEvent | undefined {
   switch (event.type) {
     case "catalog":
     case "connection":
@@ -680,7 +680,7 @@ export function toSwitchboardEvent(
 }
 
 // ---------------------------------------------------------------------------
-// Embedded `<loadout-switchboard>` Browser Transport Contract
+// Embedded `<singlet-switchboard>` Browser Transport Contract
 // ---------------------------------------------------------------------------
 
 export interface ManageTargetParams {
@@ -696,7 +696,7 @@ export interface ManageTargetParams {
   readonly cloneFrom?: string;
 }
 
-export interface LoadoutBrowserTransport {
+export interface SingletBrowserTransport {
   getCatalog(): Promise<CatalogSnapshot>;
   scan(params?: CatalogScanParams): Promise<CatalogSnapshot>;
   toggle(params: SkillToggleParams): Promise<SkillToggleResult>;
@@ -723,20 +723,20 @@ export interface LoadoutBrowserTransport {
   applyProfile?(params: ProfileApplyParams): Promise<ProfileApplyResult>;
   deleteProfile?(params: ProfileDeleteParams): Promise<ProfileDeleteResult>;
   hydrateWorktree?(params: WorktreeHydrateParams): Promise<WorktreeHydrateResult>;
-  subscribe?(listener: (event: LoadoutSwitchboardEvent) => void): () => void;
-  /** Generic JSON-RPC 2.0 dispatch compatible with `<loadout-switchboard>` */
-  rpc?<M extends LoadoutRpcMethod>(
+  subscribe?(listener: (event: SingletSwitchboardEvent) => void): () => void;
+  /** Generic JSON-RPC 2.0 dispatch compatible with `<singlet-switchboard>` */
+  rpc?<M extends SingletRpcMethod>(
     method: M,
-    params?: LoadoutRpcParams<M>,
-  ): Promise<LoadoutRpcResult<M>>;
-  call?<M extends LoadoutRpcMethod>(
+    params?: SingletRpcParams<M>,
+  ): Promise<SingletRpcResult<M>>;
+  call?<M extends SingletRpcMethod>(
     method: M,
-    params?: LoadoutRpcParams<M>,
-  ): Promise<LoadoutRpcResult<M>>;
-  request?<M extends LoadoutRpcMethod>(
+    params?: SingletRpcParams<M>,
+  ): Promise<SingletRpcResult<M>>;
+  request?<M extends SingletRpcMethod>(
     method: M,
-    params?: LoadoutRpcParams<M>,
-  ): Promise<LoadoutRpcResult<M>>;
+    params?: SingletRpcParams<M>,
+  ): Promise<SingletRpcResult<M>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -744,7 +744,7 @@ export interface LoadoutBrowserTransport {
 // ---------------------------------------------------------------------------
 
 export interface ResolveTargetOptions {
-  /** Override home directory used when expanding `~` (defaults to `env.LOADOUT_HOME ?? env.HOME`). */
+  /** Override home directory used when expanding `~` (defaults to `env.SINGLET_HOME ?? env.HOME`). */
   readonly homeDir?: string;
   /**
    * When a provider-specific env var (e.g. `CLAUDE_CONFIG_DIR=~/.claude-third`)
@@ -882,7 +882,7 @@ function targetMatchesConfigDir(
 }
 
 /**
- * Resolves the exact `loadout` `TargetInstance` for a T3 Code provider & process
+ * Resolves the exact `singlet` `TargetInstance` for a T3 Code provider & process
  * environment map (e.g., matching `CLAUDE_CONFIG_DIR=~/.claude-second` to
  * `claude-second`, or `CODEX_HOME=~/.codex-work` to `codex-work`).
  */
@@ -894,16 +894,16 @@ export function resolveTargetForEnv(
 ): TargetInstance | undefined {
   if (targets.length === 0) return undefined;
 
-  const homeDir = options.homeDir ?? env.LOADOUT_HOME ?? env.HOME;
+  const homeDir = options.homeDir ?? env.SINGLET_HOME ?? env.HOME;
 
-  // 1. Explicit target override via LOADOUT_TARGET_ID
-  const explicitTargetId = env.LOADOUT_TARGET_ID?.trim();
+  // 1. Explicit target override via SINGLET_TARGET_ID
+  const explicitTargetId = env.SINGLET_TARGET_ID?.trim();
   if (explicitTargetId) {
     const exact = targets.find((t) => t.id === explicitTargetId);
     if (exact) return exact;
   }
 
-  // 2. Direct target id match if caller passed a loadout target id as providerId
+  // 2. Direct target id match if caller passed a singlet target id as providerId
   const normalizedProvider = providerId?.trim().toLowerCase();
   if (normalizedProvider) {
     const directById = targets.find(

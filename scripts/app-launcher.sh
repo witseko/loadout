@@ -1,9 +1,9 @@
 #!/bin/sh
-# Install or remove a desktop launcher that runs `loadout ui`.
-# macOS: an app bundle (default /Applications/Loadout.app).
-# Linux: a desktop entry (default ~/.local/share/applications/loadout.desktop).
+# Install or remove a desktop launcher that runs `singlet ui`.
+# macOS: an app bundle (default /Applications/Singlet.app).
+# Linux: a desktop entry (default ~/.local/share/applications/singlet.desktop).
 #
-# Usage: app-launcher.sh install <loadout-binary> <launcher-path>
+# Usage: app-launcher.sh install <singlet-binary> <launcher-path>
 #        app-launcher.sh uninstall <launcher-path>
 set -eu
 
@@ -13,11 +13,11 @@ install_macos_bundle() {
     rm -rf "$bundle"
     mkdir -p "$bundle/Contents/MacOS"
 
-    cat > "$bundle/Contents/MacOS/Loadout" <<EOF
+    cat > "$bundle/Contents/MacOS/Singlet" <<EOF
 #!/bin/sh
 exec "$binary" ui
 EOF
-    chmod 755 "$bundle/Contents/MacOS/Loadout"
+    chmod 755 "$bundle/Contents/MacOS/Singlet"
 
     cat > "$bundle/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -25,13 +25,13 @@ EOF
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Loadout</string>
+    <string>Singlet</string>
     <key>CFBundleDisplayName</key>
-    <string>Loadout</string>
+    <string>Singlet</string>
     <key>CFBundleIdentifier</key>
-    <string>dev.loadout.app</string>
+    <string>dev.singlet.app</string>
     <key>CFBundleExecutable</key>
-    <string>Loadout</string>
+    <string>Singlet</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
@@ -50,8 +50,8 @@ install_linux_desktop_entry() {
     cat > "$entry" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Loadout
-Comment=Pick the skills each coding agent loads
+Name=Singlet
+Comment=Manage coding agent skills from one place
 Exec="$binary" ui
 Terminal=false
 Categories=Development;
@@ -83,7 +83,7 @@ case "$command" in
         echo "Removed $launcher"
         ;;
     *)
-        echo "Usage: $0 install <loadout-binary> <launcher-path> | uninstall <launcher-path>" >&2
+        echo "Usage: $0 install <singlet-binary> <launcher-path> | uninstall <launcher-path>" >&2
         exit 1
         ;;
 esac

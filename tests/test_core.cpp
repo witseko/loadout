@@ -19,7 +19,7 @@
 #include "util/sha256.hpp"
 
 namespace fs = std::filesystem;
-using namespace loadout::core;
+using namespace singlet::core;
 
 namespace {
 
@@ -38,7 +38,7 @@ struct TempSandbox {
     fs::path root;
 
     TempSandbox() {
-        std::string tmpl = "/tmp/loadout_core_test_XXXXXX";
+        std::string tmpl = "/tmp/singlet_core_test_XXXXXX";
         std::vector<char> buf(tmpl.begin(), tmpl.end());
         buf.push_back('\0');
         char* created = ::mkdtemp(buf.data());
@@ -142,7 +142,7 @@ void test_discovery_duplicates_drift_and_safety() {
     fs::create_directories(home / ".codeium/windsurf/skills");
 
     // Dangling symlink & circular symlink loop inside targets
-    CHECK(::symlink("/nonexistent/loadout/target/missing",
+    CHECK(::symlink("/nonexistent/singlet/target/missing",
                     (home / ".claude/skills/broken-link").c_str()) == 0);
     CHECK(::symlink((home / ".claude/skills/loop-b").c_str(),
                     (home / ".claude/skills/loop-a").c_str()) == 0);
@@ -296,8 +296,8 @@ void test_discovery_duplicates_drift_and_safety() {
 
     // JSON catalog contract roundtrip check
     auto snap_json = to_catalog_json(engine.get_catalog());
-    std::string serialized = loadout::util::to_json(snap_json, false);
-    auto reparsed = loadout::util::parse_json(serialized);
+    std::string serialized = singlet::util::to_json(snap_json, false);
+    auto reparsed = singlet::util::parse_json(serialized);
     CHECK(reparsed.has_value());
     CHECK(reparsed->contains("stats"));
     CHECK(reparsed->contains("canonicalRoot"));
@@ -349,8 +349,8 @@ void test_consolidate_quarantine_undo_and_drift() {
     write_file(home / "dev/proj/.claude/skills/repo-only/SKILL.md",
                "---\nname: repo-only\ndescription: Repo local.\n---\nLocal.\n");
 
-    auto hash_claude_before = loadout::util::hash_skill_tree(home / ".claude/skills/alpha-skill").hex_hash;
-    auto hash_zcode_before = loadout::util::hash_skill_tree(home / ".zcode/skills/alpha-skill").hex_hash;
+    auto hash_claude_before = singlet::util::hash_skill_tree(home / ".claude/skills/alpha-skill").hex_hash;
+    auto hash_zcode_before = singlet::util::hash_skill_tree(home / ".zcode/skills/alpha-skill").hex_hash;
     CHECK(!hash_claude_before.empty());
     CHECK(hash_claude_before == hash_zcode_before);
 
@@ -391,8 +391,8 @@ void test_consolidate_quarantine_undo_and_drift() {
     CHECK(is_real_dir_path(home / ".claude/skills/alpha-skill"));
     CHECK(is_real_dir_path(home / ".zcode/skills/alpha-skill"));
     CHECK(!fs::exists(home / ".agents/skills/alpha-skill"));
-    CHECK(loadout::util::hash_skill_tree(home / ".claude/skills/alpha-skill").hex_hash == hash_claude_before);
-    CHECK(loadout::util::hash_skill_tree(home / ".zcode/skills/alpha-skill").hex_hash == hash_zcode_before);
+    CHECK(singlet::util::hash_skill_tree(home / ".claude/skills/alpha-skill").hex_hash == hash_claude_before);
+    CHECK(singlet::util::hash_skill_tree(home / ".zcode/skills/alpha-skill").hex_hash == hash_zcode_before);
     CHECK(!engine.get_catalog().can_undo);
 
     // Resolve drift rejects a keep-both slug that would escape the canonical store
@@ -452,8 +452,8 @@ void test_git_worktree_hydration() {
 
     std::string init_cmd =
         "git -C '" + main_repo.string() + "' init -q && "
-        "git -C '" + main_repo.string() + "' config user.email 'test@loadout.local' && "
-        "git -C '" + main_repo.string() + "' config user.name 'Loadout Test' && "
+        "git -C '" + main_repo.string() + "' config user.email 'test@singlet.local' && "
+        "git -C '" + main_repo.string() + "' config user.name 'Singlet Test' && "
         "git -C '" + main_repo.string() + "' add README.md && "
         "git -C '" + main_repo.string() + "' commit -q -m 'init' && "
         "git -C '" + main_repo.string() + "' worktree add -q -b feat-wt '" + wt_dir.string() + "'";

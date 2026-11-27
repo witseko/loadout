@@ -23,7 +23,7 @@
 #include "ui/embedded_ui.hpp"
 #include "util/json.hpp"
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
 namespace {
 
@@ -75,9 +75,9 @@ std::string format_bytes(uint64_t bytes) {
 
 void print_usage() {
     std::cout
-        << "loadout " << LOADOUT_VERSION << " - zero-dependency local agent skills manager & switchboard\n\n"
+        << "singlet " << SINGLET_VERSION << " - zero-dependency local agent skills manager & switchboard\n\n"
         << "USAGE:\n"
-        << "  loadout [--home <dir>] <command> [options]\n\n"
+        << "  singlet [--home <dir>] <command> [options]\n\n"
         << "COMMANDS:\n"
         << "  scan [--roots dir1,dir2] [--json]       Discover skills, accounts, duplicates & issues\n"
         << "  ui [--port 4747] [--browser] [--no-open] Launch native desktop Patchbay UI (or browser)\n"
@@ -95,13 +95,13 @@ void print_usage() {
         << "  rpc                                     Stdio JSON-RPC 2.0 daemon (T3 Code backend)\n"
         << "  mcp                                     Stdio Model Context Protocol (MCP) server\n\n"
         << "GLOBAL OPTIONS:\n"
-        << "  --home <path>                           Override home directory (also LOADOUT_HOME env var)\n"
+        << "  --home <path>                           Override home directory (also SINGLET_HOME env var)\n"
         << "  --dump-ui-js                            Print embedded Web Component JS + CSS bundle\n"
         << "  --version, -v                           Print version and exit\n"
         << "  --help, -h                              Show this help message\n";
 }
 
-int cmd_scan(loadout::core::Engine& engine, const std::vector<std::string>& args) {
+int cmd_scan(singlet::core::Engine& engine, const std::vector<std::string>& args) {
     bool as_json = false;
     std::vector<std::filesystem::path> roots;
 
@@ -111,11 +111,11 @@ int cmd_scan(loadout::core::Engine& engine, const std::vector<std::string>& args
             as_json = true;
         } else if (a == "--roots" && i + 1 < args.size()) {
             for (const auto& r : split_csv(args[++i])) {
-                roots.push_back(loadout::core::expand_home_path(r, engine.home_dir()));
+                roots.push_back(singlet::core::expand_home_path(r, engine.home_dir()));
             }
         } else if (a.rfind("--roots=", 0) == 0) {
             for (const auto& r : split_csv(std::string_view(a).substr(8))) {
-                roots.push_back(loadout::core::expand_home_path(r, engine.home_dir()));
+                roots.push_back(singlet::core::expand_home_path(r, engine.home_dir()));
             }
         }
     }
@@ -123,12 +123,12 @@ int cmd_scan(loadout::core::Engine& engine, const std::vector<std::string>& args
     auto snap = engine.scan(roots);
 
     if (as_json) {
-        std::cout << loadout::util::to_json(loadout::core::to_catalog_json(snap), true) << '\n';
+        std::cout << singlet::util::to_json(singlet::core::to_catalog_json(snap), true) << '\n';
         return 0;
     }
 
     bool ansi = use_ansi_color();
-    std::cout << c_bold(ansi) << c_cyan(ansi) << "loadout scan" << c_reset(ansi)
+    std::cout << c_bold(ansi) << c_cyan(ansi) << "singlet scan" << c_reset(ansi)
               << "  " << c_dim(ansi) << "home=" << engine.home_dir().string()
               << "  scanned in " << std::fixed << std::setprecision(1) << snap.last_scan_ms << " ms"
               << c_reset(ansi) << "\n\n";
@@ -184,10 +184,10 @@ int cmd_scan(loadout::core::Engine& engine, const std::vector<std::string>& args
         std::cout << "  " << std::left
                   << std::setw(18) << t.id
                   << std::setw(20) << t.display_name
-                  << std::setw(15) << loadout::core::adapter_to_string(t.adapter)
+                  << std::setw(15) << singlet::core::adapter_to_string(t.adapter)
                   << std::setw(8) << active
                   << std::setw(10) << ("~" + std::to_string(toks))
-                  << loadout::core::contract_home_path(t.skills_dir, engine.home_dir())
+                  << singlet::core::contract_home_path(t.skills_dir, engine.home_dir())
                   << "\n";
     }
 
@@ -195,7 +195,7 @@ int cmd_scan(loadout::core::Engine& engine, const std::vector<std::string>& args
         std::cout << "\n" << c_amber(ansi) << c_bold(ansi) << "DETECTED UNCONFIGURED SIBLING ACCOUNTS" << c_reset(ansi) << "\n";
         for (const auto& sib : snap.unconfigured_siblings) {
             std::cout << "  • " << sib.id << " (" << sib.display_name << ") -> "
-                      << loadout::core::contract_home_path(sib.skills_dir, engine.home_dir());
+                      << singlet::core::contract_home_path(sib.skills_dir, engine.home_dir());
             if (sib.env_hint && !sib.env_hint->empty()) {
                 std::cout << "  [" << *sib.env_hint << "]";
             }
@@ -233,13 +233,13 @@ int cmd_scan(loadout::core::Engine& engine, const std::vector<std::string>& args
                 std::cout << "\n";
             }
         }
-        std::cout << c_dim(ansi) << "  Tip: run `loadout doctor --fix` to repair frontmatter non-destructively.\n" << c_reset(ansi);
+        std::cout << c_dim(ansi) << "  Tip: run `singlet doctor --fix` to repair frontmatter non-destructively.\n" << c_reset(ansi);
     }
 
     return 0;
 }
 
-int cmd_ui(loadout::core::Engine& engine, const std::vector<std::string>& args) {
+int cmd_ui(singlet::core::Engine& engine, const std::vector<std::string>& args) {
     HttpServerOptions opts;
     bool browser_mode = false;
     bool no_open = false;
@@ -255,26 +255,26 @@ int cmd_ui(loadout::core::Engine& engine, const std::vector<std::string>& args) 
             try {
                 int p = std::stoi(args[++i]);
                 if (p < 0 || p > 65535) {
-                    std::cerr << "loadout ui: invalid port: " << p << '\n';
+                    std::cerr << "singlet ui: invalid port: " << p << '\n';
                     return 1;
                 }
                 opts.port = static_cast<uint16_t>(p);
                 explicit_port = true;
             } catch (...) {
-                std::cerr << "loadout ui: invalid port argument\n";
+                std::cerr << "singlet ui: invalid port argument\n";
                 return 1;
             }
         } else if (a.rfind("--port=", 0) == 0) {
             try {
                 int p = std::stoi(a.substr(7));
                 if (p < 0 || p > 65535) {
-                    std::cerr << "loadout ui: invalid port: " << p << '\n';
+                    std::cerr << "singlet ui: invalid port: " << p << '\n';
                     return 1;
                 }
                 opts.port = static_cast<uint16_t>(p);
                 explicit_port = true;
             } catch (...) {
-                std::cerr << "loadout ui: invalid port argument\n";
+                std::cerr << "singlet ui: invalid port argument\n";
                 return 1;
             }
         }
@@ -330,12 +330,12 @@ int cmd_ui(loadout::core::Engine& engine, const std::vector<std::string>& args) 
     }
 
     NativeWindowOptions win_opts;
-    win_opts.title = "loadout";
+    win_opts.title = "singlet";
     win_opts.url = ready_url;
 
     NativeWindowResult win_res = run_native_window(win_opts);
     if (win_res == NativeWindowResult::Unavailable) {
-        std::cerr << "loadout ui: native window unavailable, opening in browser...\n";
+        std::cerr << "singlet ui: native window unavailable, opening in browser...\n";
         launch_system_browser(ready_url);
         server_thread.join();
         return server_rc;
@@ -346,7 +346,7 @@ int cmd_ui(loadout::core::Engine& engine, const std::vector<std::string>& args) 
     return (win_res == NativeWindowResult::Failed) ? 1 : server_rc;
 }
 
-int cmd_dedup(loadout::core::Engine& engine, const std::vector<std::string>& args) {
+int cmd_dedup(singlet::core::Engine& engine, const std::vector<std::string>& args) {
     bool dry_run = true;
     bool as_json = false;
     std::vector<std::string> promote_repo_paths;
@@ -368,12 +368,12 @@ int cmd_dedup(loadout::core::Engine& engine, const std::vector<std::string>& arg
 
     auto res = engine.consolidate(dry_run, promote_repo_paths);
     if (as_json) {
-        std::cout << loadout::util::to_json(loadout::core::to_consolidate_result_json(res), true) << '\n';
+        std::cout << singlet::util::to_json(singlet::core::to_consolidate_result_json(res), true) << '\n';
         return res.ok ? 0 : 1;
     }
 
     if (!res.ok) {
-        std::cerr << "loadout dedup error: " << res.error << '\n';
+        std::cerr << "singlet dedup error: " << res.error << '\n';
         return 1;
     }
 
@@ -400,28 +400,28 @@ int cmd_dedup(loadout::core::Engine& engine, const std::vector<std::string>& arg
     }
 
     if (dry_run && !res.plan.actions.empty()) {
-        std::cout << "\n  Dry run: nothing changed. Run `loadout dedup --apply` to apply this plan.\n";
+        std::cout << "\n  Dry run: nothing changed. Run `singlet dedup --apply` to apply this plan.\n";
     }
     if (!dry_run && !res.quarantine_dir.empty()) {
         std::cout << "\n  Quarantine backup: " << res.quarantine_dir.string()
-                  << "\n  Run `loadout undo` to restore previous physical folders byte-for-byte.\n";
+                  << "\n  Run `singlet undo` to restore previous physical folders byte-for-byte.\n";
     }
     return 0;
 }
 
-int cmd_undo(loadout::core::Engine& engine) {
+int cmd_undo(singlet::core::Engine& engine) {
     auto res = engine.undo_last_quarantine();
     if (!res.ok) {
-        std::cerr << "loadout undo: " << res.error << '\n';
+        std::cerr << "singlet undo: " << res.error << '\n';
         return 1;
     }
     std::cout << (res.message.empty() ? "Quarantine batch restored successfully." : res.message) << '\n';
     return 0;
 }
 
-int cmd_toggle(loadout::core::Engine& engine, const std::vector<std::string>& args) {
+int cmd_toggle(singlet::core::Engine& engine, const std::vector<std::string>& args) {
     if (args.empty()) {
-        std::cerr << "Usage: loadout toggle <skill> [--on t1,t2] [--off t3,t4]\n";
+        std::cerr << "Usage: singlet toggle <skill> [--on t1,t2] [--off t3,t4]\n";
         return 1;
     }
 
@@ -445,7 +445,7 @@ int cmd_toggle(loadout::core::Engine& engine, const std::vector<std::string>& ar
     }
 
     if (skill.empty() || (on_targets.empty() && off_targets.empty())) {
-        std::cerr << "Usage: loadout toggle <skill> [--on t1,t2] [--off t3,t4]\n";
+        std::cerr << "Usage: singlet toggle <skill> [--on t1,t2] [--off t3,t4]\n";
         return 1;
     }
 
@@ -473,9 +473,9 @@ int cmd_toggle(loadout::core::Engine& engine, const std::vector<std::string>& ar
     return exit_code;
 }
 
-int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& args) {
+int cmd_target(singlet::core::Engine& engine, const std::vector<std::string>& args) {
     if (args.empty()) {
-        std::cerr << "Usage: loadout target list | add <id> <skills-dir> [--kind <k>] [--name <n>] [--env <e>] | clone <from> <to> | remove <id>\n";
+        std::cerr << "Usage: singlet target list | add <id> <skills-dir> [--kind <k>] [--name <n>] [--env <e>] | clone <from> <to> | remove <id>\n";
         return 1;
     }
 
@@ -488,11 +488,11 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
         }
         auto targets = engine.list_targets();
         if (as_json) {
-            loadout::util::JsonValue arr = loadout::util::JsonValue::array();
+            singlet::util::JsonValue arr = singlet::util::JsonValue::array();
             for (const auto& t : targets) {
-                arr.push_back(loadout::core::to_target_json(t));
+                arr.push_back(singlet::core::to_target_json(t));
             }
-            std::cout << loadout::util::to_json(arr, true) << '\n';
+            std::cout << singlet::util::to_json(arr, true) << '\n';
             return 0;
         }
         std::cout << std::left
@@ -506,9 +506,9 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
             std::cout << std::left
                       << std::setw(18) << t.id
                       << std::setw(22) << t.display_name
-                      << std::setw(16) << loadout::core::adapter_to_string(t.adapter)
+                      << std::setw(16) << singlet::core::adapter_to_string(t.adapter)
                       << std::setw(12) << (t.configured ? "configured" : "sibling")
-                      << loadout::core::contract_home_path(t.skills_dir, engine.home_dir())
+                      << singlet::core::contract_home_path(t.skills_dir, engine.home_dir())
                       << '\n';
         }
         return 0;
@@ -516,14 +516,14 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
 
     if (sub == "add") {
         if (args.size() < 3) {
-            std::cerr << "Usage: loadout target add <id> <skills-dir> [--kind <adapter>] [--name <label>] [--env <hint>] [--clone-from <id>]\n";
+            std::cerr << "Usage: singlet target add <id> <skills-dir> [--kind <adapter>] [--name <label>] [--env <hint>] [--clone-from <id>]\n";
             return 1;
         }
-        loadout::core::TargetInstance t;
+        singlet::core::TargetInstance t;
         t.id = args[1];
-        t.skills_dir = loadout::core::expand_home_path(args[2], engine.home_dir());
+        t.skills_dir = singlet::core::expand_home_path(args[2], engine.home_dir());
         t.display_name = t.id;
-        t.adapter = loadout::core::AdapterKind::CustomLenient;
+        t.adapter = singlet::core::AdapterKind::CustomLenient;
         t.configured = true;
         t.auto_discovered = false;
         std::string clone_from;
@@ -531,7 +531,7 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
         for (size_t i = 3; i < args.size(); ++i) {
             const auto& a = args[i];
             if ((a == "--kind" || a == "--adapter") && i + 1 < args.size()) {
-                auto parsed = loadout::core::adapter_from_string(args[++i]);
+                auto parsed = singlet::core::adapter_from_string(args[++i]);
                 if (!parsed) {
                     std::cerr << "Unknown adapter kind: " << args[i] << '\n';
                     return 1;
@@ -548,12 +548,12 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
             }
         }
         if (t.group.empty()) {
-            t.group = std::string(loadout::core::adapter_default_group(t.adapter));
+            t.group = std::string(singlet::core::adapter_default_group(t.adapter));
         }
 
         auto res = engine.add_target(t, clone_from);
         if (!res.ok) {
-            std::cerr << "loadout target add failed: " << res.error << '\n';
+            std::cerr << "singlet target add failed: " << res.error << '\n';
             return 1;
         }
         std::cout << "Added target '" << t.id << "' (" << t.skills_dir.string() << ")";
@@ -564,12 +564,12 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
 
     if (sub == "clone") {
         if (args.size() < 3) {
-            std::cerr << "Usage: loadout target clone <from-id> <to-id>\n";
+            std::cerr << "Usage: singlet target clone <from-id> <to-id>\n";
             return 1;
         }
         auto res = engine.clone_target(args[1], args[2]);
         if (!res.ok) {
-            std::cerr << "loadout target clone failed: " << res.error << '\n';
+            std::cerr << "singlet target clone failed: " << res.error << '\n';
             return 1;
         }
         std::cout << (res.message.empty() ? ("Cloned wiring from " + args[1] + " to " + args[2]) : res.message) << '\n';
@@ -578,12 +578,12 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
 
     if (sub == "remove" || sub == "rm") {
         if (args.size() < 2) {
-            std::cerr << "Usage: loadout target remove <id>\n";
+            std::cerr << "Usage: singlet target remove <id>\n";
             return 1;
         }
         auto res = engine.remove_target(args[1]);
         if (!res.ok) {
-            std::cerr << "loadout target remove failed: " << res.error << '\n';
+            std::cerr << "singlet target remove failed: " << res.error << '\n';
             return 1;
         }
         std::cout << (res.message.empty() ? ("Removed target " + args[1]) : res.message) << '\n';
@@ -594,7 +594,7 @@ int cmd_target(loadout::core::Engine& engine, const std::vector<std::string>& ar
     return 1;
 }
 
-int cmd_doctor(loadout::core::Engine& engine, const std::vector<std::string>& args) {
+int cmd_doctor(singlet::core::Engine& engine, const std::vector<std::string>& args) {
     bool do_fix = false;
     for (const auto& a : args) {
         if (a == "--fix") do_fix = true;
@@ -604,7 +604,7 @@ int cmd_doctor(loadout::core::Engine& engine, const std::vector<std::string>& ar
     bool ansi = use_ansi_color();
     int issues_found = 0;
 
-    std::cout << c_bold(ansi) << "loadout doctor" << c_reset(ansi)
+    std::cout << c_bold(ansi) << "singlet doctor" << c_reset(ansi)
               << "  (" << engine.home_dir().string() << ")\n\n";
 
     // 1. Dangling symlinks
@@ -652,7 +652,7 @@ int cmd_doctor(loadout::core::Engine& engine, const std::vector<std::string>& ar
         if (fm_count == 0) {
             std::cout << c_green(ansi) << "✓" << c_reset(ansi) << " All skill frontmatter is Antigravity-compliant.\n";
         } else {
-            std::cout << "  Run `loadout doctor --fix` to repair automatically.\n";
+            std::cout << "  Run `singlet doctor --fix` to repair automatically.\n";
         }
     }
 
@@ -684,9 +684,9 @@ int cmd_doctor(loadout::core::Engine& engine, const std::vector<std::string>& ar
 
 std::filesystem::path resolve_home_dir(const std::optional<std::filesystem::path>& home_override) {
     if (home_override && !home_override->empty()) {
-        return loadout::core::resolve_home_dir(*home_override);
+        return singlet::core::resolve_home_dir(*home_override);
     }
-    return loadout::core::resolve_home_dir({});
+    return singlet::core::resolve_home_dir({});
 }
 
 CliOptions parse_cli_args(int argc, char** argv) {
@@ -716,23 +716,23 @@ int run_cli(int argc, char** argv) {
     }
 
     if (opts.command == "--version" || opts.command == "-v" || opts.command == "version") {
-        std::cout << "loadout " << LOADOUT_VERSION << '\n';
+        std::cout << "singlet " << SINGLET_VERSION << '\n';
         return 0;
     }
 
     if (opts.command == "--dump-ui-js") {
-        std::cout << "/* === loadout embedded app.css === */\n"
-                  << "export const LOADOUT_APP_CSS = "
-                  << loadout::util::to_json(loadout::util::JsonValue(std::string(loadout::ui::APP_CSS)), false) << ";\n\n"
-                  << "/* === loadout embedded switchboard.js === */\n"
-                  << loadout::ui::SWITCHBOARD_JS << '\n';
+        std::cout << "/* === singlet embedded app.css === */\n"
+                  << "export const SINGLET_APP_CSS = "
+                  << singlet::util::to_json(singlet::util::JsonValue(std::string(singlet::ui::APP_CSS)), false) << ";\n\n"
+                  << "/* === singlet embedded switchboard.js === */\n"
+                  << singlet::ui::SWITCHBOARD_JS << '\n';
         return 0;
     }
 
     // All remaining commands construct Engine bound strictly to resolved home_dir
-    loadout::core::EngineConfig cfg;
+    singlet::core::EngineConfig cfg;
     cfg.home_dir = resolve_home_dir(opts.home_override);
-    loadout::core::Engine engine(std::move(cfg));
+    singlet::core::Engine engine(std::move(cfg));
 
     if (opts.command == "scan") {
         return cmd_scan(engine, opts.args);
@@ -765,8 +765,8 @@ int run_cli(int argc, char** argv) {
         return run_mcp_server(engine);
     }
 
-    std::cerr << "Unknown command: " << opts.command << "\nRun `loadout --help` for usage.\n";
+    std::cerr << "Unknown command: " << opts.command << "\nRun `singlet --help` for usage.\n";
     return 1;
 }
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

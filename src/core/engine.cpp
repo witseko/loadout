@@ -21,10 +21,10 @@
 #include "util/frontmatter.hpp"
 #include "util/sha256.hpp"
 
-namespace loadout::core {
+namespace singlet::core {
 
 namespace fs = std::filesystem;
-using loadout::util::JsonValue;
+using singlet::util::JsonValue;
 
 namespace {
 
@@ -69,7 +69,7 @@ bool write_text_file_atomic(const fs::path& p, std::string_view content) {
     if (ec) return false;
 
     fs::path tmp = p.parent_path() /
-                   (p.filename().string() + ".loadout-tmp-" + std::to_string(::getpid()) + "-" +
+                   (p.filename().string() + ".singlet-tmp-" + std::to_string(::getpid()) + "-" +
                     std::to_string(++g_tmp_seq));
     {
         std::ofstream out(tmp, std::ios::out | std::ios::binary | std::ios::trunc);
@@ -177,7 +177,7 @@ std::vector<std::string> list_relative_files(const fs::path& dir) {
         if (it->is_symlink(ec)) continue;
         if (!it->is_regular_file(ec)) continue;
         std::string fname = it->path().filename().string();
-        if (fname == ".DS_Store" || fname == "Thumbs.db" || fname.starts_with(".loadout-tmp-")) continue;
+        if (fname == ".DS_Store" || fname == "Thumbs.db" || fname.starts_with(".singlet-tmp-")) continue;
         auto rel = fs::relative(it->path(), dir, ec);
         if (!ec) {
             files.push_back(rel.generic_string());
@@ -199,7 +199,7 @@ std::vector<SkillFileEntry> read_skill_file_entries(const fs::path& dir) {
         if (it->is_symlink(ec)) continue;
         if (!it->is_regular_file(ec)) continue;
         std::string fname = it->path().filename().string();
-        if (fname == ".DS_Store" || fname == "Thumbs.db" || fname.starts_with(".loadout-tmp-")) continue;
+        if (fname == ".DS_Store" || fname == "Thumbs.db" || fname.starts_with(".singlet-tmp-")) continue;
 
         auto rel = fs::relative(it->path(), dir, ec);
         if (ec) continue;
@@ -337,7 +337,7 @@ std::string adapter_worktree_skills_relpath(AdapterKind kind) {
     return ".agents/skills";
 }
 
-JsonValue to_frontmatter_json(const loadout::util::FrontmatterInfo& fm) {
+JsonValue to_frontmatter_json(const singlet::util::FrontmatterInfo& fm) {
     JsonValue obj = JsonValue::object();
     obj.set("hasFrontmatter", fm.has_frontmatter);
     obj.set("name", fm.name);
@@ -392,7 +392,7 @@ bool Engine::load_lockfile() {
         return false;
     }
 
-    auto parsed = loadout::util::parse_json(content);
+    auto parsed = singlet::util::parse_json(content);
     if (!parsed || !parsed->is_object()) {
         return false;
     }
@@ -589,7 +589,7 @@ bool Engine::save_lockfile() const {
     }
     root.set("quarantineHistory", std::move(qh));
 
-    return write_text_file_atomic(lockfile_path(), loadout::util::to_json(root, true) + "\n");
+    return write_text_file_atomic(lockfile_path(), singlet::util::to_json(root, true) + "\n");
 }
 
 CatalogSnapshot Engine::get_catalog() {
@@ -847,7 +847,7 @@ CatalogSnapshot Engine::scan(const std::vector<fs::path>& extra_roots) {
                     if (i > 0) {
                         std::string var_label = contract_home_path(reps[i].path, home_dir_);
                         var.unified_diff_from_primary =
-                            loadout::util::unified_diff(primary_md, md, primary_label, var_label);
+                            singlet::util::unified_diff(primary_md, md, primary_label, var_label);
                         if (var.unified_diff_from_primary.empty()) {
                             // SKILL.md identical, auxiliary files differ
                             std::ostringstream oss;
@@ -981,7 +981,7 @@ OperationResult Engine::write_atomic_symlink(
                 ""};
     }
 
-    std::string tmp_name = ".loadout-tmp-" + std::to_string(::getpid()) + "-" + std::to_string(++g_tmp_seq);
+    std::string tmp_name = ".singlet-tmp-" + std::to_string(::getpid()) + "-" + std::to_string(++g_tmp_seq);
     fs::path tmp_path = link_path.parent_path() / tmp_name;
 
     if (::symlink(target_path.c_str(), tmp_path.c_str()) != 0) {
@@ -1033,7 +1033,7 @@ void Engine::sync_antigravity_skills_json(const TargetInstance& target) const {
         std::vector<std::string> slugs;
         while (struct dirent* ent = ::readdir(dp)) {
             std::string name(ent->d_name);
-            if (name == "." || name == ".." || name.starts_with(".loadout-tmp-")) continue;
+            if (name == "." || name == ".." || name.starts_with(".singlet-tmp-")) continue;
             fs::path p = target.skills_dir / name;
             if (!find_skill_md_in_dir(p).empty()) {
                 slugs.push_back(name);
@@ -1051,7 +1051,7 @@ void Engine::sync_antigravity_skills_json(const TargetInstance& target) const {
 
     JsonValue root = JsonValue::object();
     root.set("skills", std::move(arr));
-    write_text_file_atomic(skills_json, loadout::util::to_json(root, true) + "\n");
+    write_text_file_atomic(skills_json, singlet::util::to_json(root, true) + "\n");
 }
 
 OperationResult Engine::toggle_skill(
@@ -1336,7 +1336,7 @@ ConsolidateResult Engine::consolidate(
     manifest.set("timestamp", ts);
     manifest.set("entries", manifest_entries);
 
-    write_text_file_atomic(batch_dir / "manifest.json", loadout::util::to_json(manifest, true) + "\n");
+    write_text_file_atomic(batch_dir / "manifest.json", singlet::util::to_json(manifest, true) + "\n");
 
     QuarantineBatchRecord rec;
     rec.id = batch_id;
@@ -1487,7 +1487,7 @@ OperationResult Engine::resolve_drift(
     manifest.set("batchId", batch_id);
     manifest.set("timestamp", ts);
     manifest.set("entries", manifest_entries);
-    write_text_file_atomic(batch_dir / "manifest.json", loadout::util::to_json(manifest, true) + "\n");
+    write_text_file_atomic(batch_dir / "manifest.json", singlet::util::to_json(manifest, true) + "\n");
 
     QuarantineBatchRecord rec;
     rec.id = batch_id;
@@ -1515,7 +1515,7 @@ OperationResult Engine::undo_last_quarantine() {
     QuarantineBatchRecord batch = quarantine_history_.back();
     fs::path manifest_path = batch.dir / "manifest.json";
     std::string text = read_text_file(manifest_path);
-    auto parsed = loadout::util::parse_json(text);
+    auto parsed = singlet::util::parse_json(text);
     if (!parsed || !parsed->is_object()) {
         return {false, "Invalid or unreadable quarantine manifest: " + manifest_path.string(), ""};
     }
@@ -1622,10 +1622,10 @@ FrontmatterFixResult Engine::fix_frontmatter(const std::string& slug, bool apply
 
     res.file_path = skill_md;
     res.before = read_text_file(skill_md);
-    res.after = loadout::util::fix_skill_frontmatter(res.before, slug);
+    res.after = singlet::util::fix_skill_frontmatter(res.before, slug);
     res.changed = (res.before != res.after);
     if (res.changed) {
-        res.diff = loadout::util::unified_diff(
+        res.diff = singlet::util::unified_diff(
             res.before, res.after, slug + "/SKILL.md (before)", slug + "/SKILL.md (after)");
     }
 
@@ -1945,7 +1945,7 @@ OperationResult Engine::save_profile(
         cached_snapshot_->profiles = get_profiles();
     }
     if (!save_lockfile()) {
-        return {false, "Failed to persist profile to loadout.lock.json", ""};
+        return {false, "Failed to persist profile to singlet.lock.json", ""};
     }
     return {true, "", "Saved profile '" + name + "'"};
 }
@@ -2043,7 +2043,7 @@ OperationResult Engine::delete_profile(const std::string& name) {
         cached_snapshot_->profiles = get_profiles();
     }
     if (!save_lockfile()) {
-        return {false, "Failed to update loadout.lock.json", ""};
+        return {false, "Failed to update singlet.lock.json", ""};
     }
     return {true, "", "Deleted profile '" + name + "'"};
 }
@@ -2172,7 +2172,7 @@ WorktreeHydrateResult Engine::hydrate_worktree(
             if (DIR* dp = ::opendir(src_container.c_str())) {
                 while (struct dirent* ent = ::readdir(dp)) {
                     std::string slug(ent->d_name);
-                    if (slug == "." || slug == ".." || slug.starts_with(".loadout-tmp-")) continue;
+                    if (slug == "." || slug == ".." || slug.starts_with(".singlet-tmp-")) continue;
                     fs::path src_entry = src_container / slug;
                     if (!find_skill_md_in_dir(src_entry).empty()) {
                         link_into_worktree(rel_c, slug, safe_weakly_canonical(src_entry));
@@ -2218,13 +2218,13 @@ WorktreeHydrateResult Engine::hydrate_worktree(
         if (!existing.empty() && existing.back() != '\n') {
             to_append << "\n";
         }
-        bool added_header = existing.find("# loadout-managed worktree skills") != std::string::npos;
+        bool added_header = existing.find("# singlet-managed worktree skills") != std::string::npos;
         size_t newly_added = 0;
         for (const auto& pat : exclude_patterns) {
             res.excluded_entries.push_back(pat);
             if (!existing_lines.contains(pat)) {
                 if (!added_header) {
-                    to_append << "# loadout-managed worktree skills\n";
+                    to_append << "# singlet-managed worktree skills\n";
                     added_header = true;
                 }
                 to_append << pat << "\n";
@@ -2510,7 +2510,7 @@ JsonValue to_skill_detail_json(const SkillDetail& detail) {
     obj.set("files", std::move(files));
     obj.set("filePaths", std::move(file_paths));
 
-    loadout::util::FrontmatterInfo fm = loadout::util::parse_skill_markdown(detail.markdown, detail.skill.slug);
+    singlet::util::FrontmatterInfo fm = singlet::util::parse_skill_markdown(detail.markdown, detail.skill.slug);
     obj.set("frontmatter", to_frontmatter_json(fm));
 
     JsonValue enabled_in = JsonValue::object();
@@ -2580,7 +2580,7 @@ JsonValue to_frontmatter_fix_json(const FrontmatterFixResult& res) {
     obj.set("unifiedDiff", res.diff);
     obj.set("diff", res.diff);
     if (!res.after.empty()) {
-        auto fm = loadout::util::parse_skill_markdown(res.after, res.slug);
+        auto fm = singlet::util::parse_skill_markdown(res.after, res.slug);
         obj.set("antigravityValid", fm.antigravity_valid);
     }
     return obj;
@@ -2634,4 +2634,4 @@ JsonValue to_profiles_json(
     return obj;
 }
 
-}  // namespace loadout::core
+}  // namespace singlet::core

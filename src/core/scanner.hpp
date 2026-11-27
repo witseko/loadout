@@ -6,7 +6,7 @@
 
 #include "core/types.hpp"
 
-namespace loadout::core {
+namespace singlet::core {
 
 /// Inputs controlling directory traversal, pruning, and worker concurrency.
 struct ScanOptions {
@@ -35,4 +35,4 @@ struct ScanResult {
 /// Tracks visited (st_dev, st_ino) pairs to terminate circular symlinks immediately.
 [[nodiscard]] ScanResult scan_filesystem(const ScanOptions& options);
 
-}  // namespace loadout::core
+}  // namespace singlet::core

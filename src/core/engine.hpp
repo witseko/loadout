@@ -9,7 +9,7 @@
 #include "core/types.hpp"
 #include "util/json.hpp"
 
-namespace loadout::core {
+namespace singlet::core {
 
 /// Stateful domain engine owning lockfile persistence, scanning, symlink wiring,
 /// zero-data-loss consolidation, quarantine undo, profiles, and git worktree hydration.
@@ -20,7 +20,7 @@ public:
     [[nodiscard]] const std::filesystem::path& home_dir() const { return home_dir_; }
     [[nodiscard]] std::filesystem::path canonical_skills_dir() const { return home_dir_ / ".agents" / "skills"; }
     [[nodiscard]] std::filesystem::path quarantine_root_dir() const { return home_dir_ / ".agents" / "quarantine"; }
-    [[nodiscard]] std::filesystem::path lockfile_path() const { return home_dir_ / ".agents" / "loadout.lock.json"; }
+    [[nodiscard]] std::filesystem::path lockfile_path() const { return home_dir_ / ".agents" / "singlet.lock.json"; }
 
     /// Runs a full filesystem scan and updates the cached catalog snapshot.
     CatalogSnapshot scan(const std::vector<std::filesystem::path>& extra_roots = {});
@@ -75,7 +75,7 @@ public:
     [[nodiscard]] std::vector<Profile> get_profiles() const;
     /// Returns the currently active profile name (empty if none selected).
     [[nodiscard]] std::string active_profile() const { return active_profile_; }
-    /// Saves a named wiring profile to loadout.lock.json. When both wiring and skills are empty,
+    /// Saves a named wiring profile to singlet.lock.json. When both wiring and skills are empty,
     /// snapshots the current live switchboard wiring.
     [[nodiscard]] OperationResult save_profile(
         const std::string& name,
@@ -83,7 +83,7 @@ public:
         const std::vector<std::string>& skills = {});
     /// Applies a named profile without touching unmanaged physical copies, broken links, or plugin shadows.
     [[nodiscard]] OperationResult apply_profile(const std::string& name);
-    /// Deletes a saved profile from loadout.lock.json.
+    /// Deletes a saved profile from singlet.lock.json.
     [[nodiscard]] OperationResult delete_profile(const std::string& name);
 
     /// Hydrates active target and repo-local skill symlinks into a git worktree and updates info/exclude.
@@ -93,9 +93,9 @@ public:
         const std::filesystem::path& repo_root = {},
         const std::string& provider_id = {});
 
-    /// Reloads persisted targets, scan roots, profiles, and quarantine history from loadout.lock.json.
+    /// Reloads persisted targets, scan roots, profiles, and quarantine history from singlet.lock.json.
     bool load_lockfile();
-    /// Atomically persists lockfile state to loadout.lock.json.
+    /// Atomically persists lockfile state to singlet.lock.json.
     bool save_lockfile() const;
 
 private:
@@ -127,22 +127,22 @@ private:
 };
 
 /// Serializes a CatalogSnapshot matching the REST and JSON-RPC 2.0 contract.
-[[nodiscard]] loadout::util::JsonValue to_catalog_json(const CatalogSnapshot& snap);
+[[nodiscard]] singlet::util::JsonValue to_catalog_json(const CatalogSnapshot& snap);
 /// Serializes a TargetInstance to JSON.
-[[nodiscard]] loadout::util::JsonValue to_target_json(const TargetInstance& target);
+[[nodiscard]] singlet::util::JsonValue to_target_json(const TargetInstance& target);
 /// Serializes a SkillDetail (including multi-file `files: [{path, size, isText, content}]`) to JSON.
-[[nodiscard]] loadout::util::JsonValue to_skill_detail_json(const SkillDetail& detail);
+[[nodiscard]] singlet::util::JsonValue to_skill_detail_json(const SkillDetail& detail);
 /// Serializes a ConsolidateResult to JSON.
-[[nodiscard]] loadout::util::JsonValue to_consolidate_result_json(const ConsolidateResult& res);
+[[nodiscard]] singlet::util::JsonValue to_consolidate_result_json(const ConsolidateResult& res);
 /// Serializes a FrontmatterFixResult to JSON.
-[[nodiscard]] loadout::util::JsonValue to_frontmatter_fix_json(const FrontmatterFixResult& res);
+[[nodiscard]] singlet::util::JsonValue to_frontmatter_fix_json(const FrontmatterFixResult& res);
 /// Serializes a WorktreeHydrateResult to JSON.
-[[nodiscard]] loadout::util::JsonValue to_worktree_hydrate_json(const WorktreeHydrateResult& res);
+[[nodiscard]] singlet::util::JsonValue to_worktree_hydrate_json(const WorktreeHydrateResult& res);
 /// Serializes an OperationResult to JSON.
-[[nodiscard]] loadout::util::JsonValue to_operation_result_json(const OperationResult& res);
+[[nodiscard]] singlet::util::JsonValue to_operation_result_json(const OperationResult& res);
 /// Serializes saved profiles and active profile name to JSON.
-[[nodiscard]] loadout::util::JsonValue to_profiles_json(
+[[nodiscard]] singlet::util::JsonValue to_profiles_json(
     const std::vector<Profile>& profiles,
     std::string_view active_profile);
 
-}  // namespace loadout::core
+}  // namespace singlet::core

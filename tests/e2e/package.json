@@ -1,7 +1,7 @@
 {
-  "name": "loadout-e2e",
+  "name": "singlet-e2e",
   "private": true,
-  "description": "Playwright end-to-end tests for the loadout binary and its embedded web UI",
+  "description": "Playwright end-to-end tests for the singlet binary and its embedded web UI",
   "type": "module",
   "scripts": {
     "test": "playwright test",

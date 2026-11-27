@@ -1,23 +1,23 @@
-# `@loadout/t3code-plugin`
+# `@singlet/t3code-plugin`
 
-Official [`pingdotgg/t3code`](https://github.com/pingdotgg/t3code) integration package for **`loadout`**: keeping skills synchronized across providers (`claude`, `codex`, `opencode`, `antigravity`), multi-account profiles (`CLAUDE_CONFIG_DIR=~/.claude-second`, `CODEX_HOME=~/.codex-work`), and isolated per-thread Git worktrees.
+Official [`pingdotgg/t3code`](https://github.com/pingdotgg/t3code) integration package for **`singlet`**: keeping skills synchronized across providers (`claude`, `codex`, `opencode`, `antigravity`), multi-account profiles (`CLAUDE_CONFIG_DIR=~/.claude-second`, `CODEX_HOME=~/.codex-work`), and isolated per-thread Git worktrees.
 
-> This directory is intentionally **source-only** (`0` runtime dependencies, `0` checked-in `node_modules`) so the root `loadout` repository stays a pure zero-dependency C++20 codebase.
+> This directory is intentionally **source-only** (`0` runtime dependencies, `0` checked-in `node_modules`) so the root `singlet` repository stays a pure zero-dependency C++20 codebase.
 
 ---
 
-## Tier 1: Zero-Fork Integration (`loadout mcp`)
+## Tier 1: Zero-Fork Integration (`singlet mcp`)
 
-Works in T3 Code (and Claude Code / Codex / OpenCode) immediately with **zero changes to T3 Code's source code**. Add `loadout mcp` to your MCP configuration:
+Works in T3 Code (and Claude Code / Codex / OpenCode) immediately with **zero changes to T3 Code's source code**. Add `singlet mcp` to your MCP configuration:
 
 ```json
 {
   "mcpServers": {
-    "loadout": {
-      "command": "loadout",
+    "singlet": {
+      "command": "singlet",
       "args": ["mcp"],
       "env": {
-        "LOADOUT_HOME": ""
+        "SINGLET_HOME": ""
       }
     }
   }
@@ -25,42 +25,42 @@ Works in T3 Code (and Claude Code / Codex / OpenCode) immediately with **zero ch
 ```
 
 Exposed MCP tools:
-- `loadout_list_catalog`: Canonical skills, token estimates, and wiring matrix per target/account.
-- `loadout_audit_duplicates`: Exact duplicates, drifted forks, broken symlinks, and Antigravity frontmatter issues.
-- `loadout_toggle_skill`: Enable/disable a skill symlink in specific target instances.
-- `loadout_add_target`: Register custom tool folders or sibling accounts (e.g. `~/.claude-second/skills`).
-- `loadout_hydrate_worktree`: Materialize project skill symlinks in a Git worktree cleanly excluded via `.git/info/exclude`.
-- `loadout_fix_frontmatter`: Repair missing/mismatched YAML frontmatter non-destructively.
+- `singlet_list_catalog`: Canonical skills, token estimates, and wiring matrix per target/account.
+- `singlet_audit_duplicates`: Exact duplicates, drifted forks, broken symlinks, and Antigravity frontmatter issues.
+- `singlet_toggle_skill`: Enable/disable a skill symlink in specific target instances.
+- `singlet_add_target`: Register custom tool folders or sibling accounts (e.g. `~/.claude-second/skills`).
+- `singlet_hydrate_worktree`: Materialize project skill symlinks in a Git worktree cleanly excluded via `.git/info/exclude`.
+- `singlet_fix_frontmatter`: Repair missing/mismatched YAML frontmatter non-destructively.
 
 Exposed MCP resources:
 - `skill://<slug>/SKILL.md`: On-demand inspection of any canonical skill.
 
 ---
 
-## Tier 2: `apps/server` Effect-TS Plugin (`@loadout/t3code-plugin/server`)
+## Tier 2: `apps/server` Effect-TS Plugin (`@singlet/t3code-plugin/server`)
 
-### 1. Provide `LoadoutServiceLive` in T3 Code's Server Layer
+### 1. Provide `SingletServiceLive` in T3 Code's Server Layer
 
-`LoadoutServiceLive` is an Effect `Layer.scoped` that spawns `loadout rpc`, multiplexes JSON-RPC 2.0 requests over `stdin`/`stdout`, exposes a reactive `events: Stream.Stream<LoadoutEvent>`, and terminates the child process cleanly when the Effect scope closes.
+`SingletServiceLive` is an Effect `Layer.scoped` that spawns `singlet rpc`, multiplexes JSON-RPC 2.0 requests over `stdin`/`stdout`, exposes a reactive `events: Stream.Stream<SingletEvent>`, and terminates the child process cleanly when the Effect scope closes.
 
 ```ts
 import { Effect, Layer } from "effect";
 import {
-  LoadoutService,
-  LoadoutServiceLive,
-  makeLoadoutServiceLayer,
-  handleLoadoutWebSocketRpc,
-} from "@loadout/t3code-plugin/server";
+  SingletService,
+  SingletServiceLive,
+  makeSingletServiceLayer,
+  handleSingletWebSocketRpc,
+} from "@singlet/t3code-plugin/server";
 
-// Default: uses `LOADOUT_BIN` (default `"loadout"`) and `LOADOUT_HOME` from environment
+// Default: uses `SINGLET_BIN` (default `"singlet"`) and `SINGLET_HOME` from environment
 const ServerLive = Layer.mergeAll(
   /* ...existing T3 Code layers... */
-  LoadoutServiceLive,
+  SingletServiceLive,
 );
 
 // Or configure explicitly:
-const CustomLoadoutLive = makeLoadoutServiceLayer({
-  binaryPath: "/usr/local/bin/loadout",
+const CustomSingletLive = makeSingletServiceLayer({
+  binaryPath: "/usr/local/bin/singlet",
   defaultAutoWire: false,
   defaultAutoFixFrontmatter: false,
 });
@@ -78,8 +78,8 @@ const hydrateOnCreate = (ctx: {
   env: Record<string, string>;
 }) =>
   Effect.gen(function* () {
-    const loadout = yield* LoadoutService;
-    return yield* loadout.onWorktreeCreated(ctx);
+    const singlet = yield* SingletService;
+    return yield* singlet.onWorktreeCreated(ctx);
   });
 ```
 
@@ -94,46 +94,46 @@ const preflightTurn = (ctx: {
   selectedSkills: string[];
 }) =>
   Effect.gen(function* () {
-    const loadout = yield* LoadoutService;
-    const report = yield* loadout.onBeforeProviderTurn({
+    const singlet = yield* SingletService;
+    const report = yield* singlet.onBeforeProviderTurn({
       ...ctx,
       autoWire: true, // set false to warn instead of auto-linking
     });
     if (!report.ok) {
-      yield* Effect.logWarning("loadout preflight warnings", report.warnings);
+      yield* Effect.logWarning("singlet preflight warnings", report.warnings);
     }
     return report;
   });
 ```
 
-### 4. Bridge `loadout` RPC and Events Over T3 Code's WebSocket
+### 4. Bridge `singlet` RPC and Events Over T3 Code's WebSocket
 
 Forward client RPC calls (`catalog.get`, `skill.toggle`, `target.add`, `profile.apply`, etc.) so desktop, browser, and mobile T3 Code clients can control skills on the host machine:
 
 ```ts
 // Inside your WebSocket RPC router:
-const onLoadoutMessage = (msg: { method: LoadoutRpcMethod; params?: Record<string, unknown> }) =>
-  handleLoadoutWebSocketRpc(msg);
+const onSingletMessage = (msg: { method: SingletRpcMethod; params?: Record<string, unknown> }) =>
+  handleSingletWebSocketRpc(msg);
 ```
 
 ---
 
-## Tier 3: `apps/web` React 19 Integration (`@loadout/t3code-plugin/web`)
+## Tier 3: `apps/web` React 19 Integration (`@singlet/t3code-plugin/web`)
 
-### 1. Serve the Embedded `<loadout-switchboard>` Web Component
+### 1. Serve the Embedded `<singlet-switchboard>` Web Component
 
-`loadout` bundles its zero-framework Web Component (`switchboard.js` + `app.css`) inside the native binary. Export it once from `apps/server` (using `loadout --dump-ui-js`) or serve it at `/api/loadout/switchboard.js` and `/api/loadout/app.css`.
+`singlet` bundles its zero-framework Web Component (`switchboard.js` + `app.css`) inside the native binary. Export it once from `apps/server` (using `singlet --dump-ui-js`) or serve it at `/api/singlet/switchboard.js` and `/api/singlet/app.css`.
 
-### 2. Mount `<LoadoutSwitchboardDrawer />`
+### 2. Mount `<SingletSwitchboardDrawer />`
 
-Includes the compact Artboard 6 header, `Global targets` / `Current Git worktree` segmented switch, `--loadout-*` design tokens (`#0B0D10`, `#E0DDBD`, `#3DDC97`, `#F5B544`, `#F2647A`), and `synced over host WebSocket` status bar.
+Includes the compact Artboard 6 header, `Global targets` / `Current Git worktree` segmented switch, `--singlet-*` design tokens (`#0B0D10`, `#E0DDBD`, `#3DDC97`, `#F5B544`, `#F2647A`), and `synced over host WebSocket` status bar.
 
 ```tsx
 import { useState } from "react";
 import {
-  LoadoutSwitchboardDrawer,
+  SingletSwitchboardDrawer,
   type T3CodeWsBridge,
-} from "@loadout/t3code-plugin/web";
+} from "@singlet/t3code-plugin/web";
 
 export function SkillsDrawerHost({
   wsBridge,
@@ -152,12 +152,12 @@ export function SkillsDrawerHost({
         Skills drawer
       </button>
 
-      <LoadoutSwitchboardDrawer
+      <SingletSwitchboardDrawer
         open={open}
         onClose={() => setOpen(false)}
         wsBridge={wsBridge}
-        scriptUrl="/api/loadout/switchboard.js"
-        cssUrl="/api/loadout/app.css"
+        scriptUrl="/api/singlet/switchboard.js"
+        cssUrl="/api/singlet/app.css"
         scope={worktreePath ? "worktree" : "global"}
         worktreePath={worktreePath}
         activeTargetId={activeTargetId}
@@ -170,9 +170,9 @@ export function SkillsDrawerHost({
 ### 3. Add Target-Wiring Pills and 1-Click `"Wire & Insert"` to the `$` Composer Picker
 
 ```tsx
-import { ComposerSkillPickerBadge } from "@loadout/t3code-plugin/web/composer";
-import type { CatalogSnapshot } from "@loadout/t3code-plugin/protocol";
-import type { T3CodeWsBridge } from "@loadout/t3code-plugin/web";
+import { ComposerSkillPickerBadge } from "@singlet/t3code-plugin/web/composer";
+import type { CatalogSnapshot } from "@singlet/t3code-plugin/protocol";
+import type { T3CodeWsBridge } from "@singlet/t3code-plugin/web";
 
 export function SkillAutocompleteRow({
   slug,
@@ -212,8 +212,8 @@ export function SkillAutocompleteRow({
 
 | Subpath | Environment | Purpose |
 | :--- | :--- | :--- |
-| `@loadout/t3code-plugin/protocol` | Universal (Node/Bun/Browser) | JSON-RPC 2.0 envelopes, `CatalogSnapshot` types, `resolveTargetForEnv` |
-| `@loadout/t3code-plugin/server` | Node / Bun (`apps/server`) | Effect-TS `LoadoutService`, `LoadoutServiceLive`, lifecycle hooks |
-| `@loadout/t3code-plugin/server/rpc` | Node / Bun (`apps/server`) | Zero-dep stdio JSON-RPC 2.0 `LoadoutRpcClient` |
-| `@loadout/t3code-plugin/web` | Browser / Electron (`apps/web`) | React 19 `<LoadoutSwitchboardDrawer />` & `createWsLoadoutTransport` |
-| `@loadout/t3code-plugin/web/composer` | Browser / Electron (`apps/web`) | React 19 `<ComposerSkillPickerBadge />` |
+| `@singlet/t3code-plugin/protocol` | Universal (Node/Bun/Browser) | JSON-RPC 2.0 envelopes, `CatalogSnapshot` types, `resolveTargetForEnv` |
+| `@singlet/t3code-plugin/server` | Node / Bun (`apps/server`) | Effect-TS `SingletService`, `SingletServiceLive`, lifecycle hooks |
+| `@singlet/t3code-plugin/server/rpc` | Node / Bun (`apps/server`) | Zero-dep stdio JSON-RPC 2.0 `SingletRpcClient` |
+| `@singlet/t3code-plugin/web` | Browser / Electron (`apps/web`) | React 19 `<SingletSwitchboardDrawer />` & `createWsSingletTransport` |
+| `@singlet/t3code-plugin/web/composer` | Browser / Electron (`apps/web`) | React 19 `<ComposerSkillPickerBadge />` |

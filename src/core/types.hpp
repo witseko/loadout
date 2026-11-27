@@ -11,7 +11,7 @@
 
 #include "util/frontmatter.hpp"
 
-namespace loadout::core {
+namespace singlet::core {
 
 /// Adapter rule set governing frontmatter strictness and link conventions.
 enum class AdapterKind {
@@ -86,7 +86,7 @@ struct SkillOccurrence {
     size_t file_count = 0;
     uint64_t total_bytes = 0;
     int64_t mtime_epoch = 0;
-    loadout::util::FrontmatterInfo frontmatter;
+    singlet::util::FrontmatterInfo frontmatter;
     std::string symlink_target;
 };
 
@@ -217,7 +217,7 @@ struct SkillDetail {
     std::vector<SkillFileEntry> file_entries;
 };
 
-/// Named wiring preset persisted in loadout.lock.json.
+/// Named wiring preset persisted in singlet.lock.json.
 struct Profile {
     std::string name;
     std::vector<std::string> skills;
@@ -275,11 +275,11 @@ struct EngineConfig {
     size_t worker_threads = 0;
 };
 
-/// Resolves the effective home directory: explicit override, LOADOUT_HOME env var, then HOME.
+/// Resolves the effective home directory: explicit override, SINGLET_HOME env var, then HOME.
 [[nodiscard]] std::filesystem::path resolve_home_dir(const std::filesystem::path& explicit_home = {});
 /// Expands a leading '~' relative to home_dir and normalizes lexically.
 [[nodiscard]] std::filesystem::path expand_home_path(std::string_view raw_path, const std::filesystem::path& home_dir);
 /// Contracts a leading home_dir prefix to '~' for portable display and lockfile storage.
 [[nodiscard]] std::string contract_home_path(const std::filesystem::path& path, const std::filesystem::path& home_dir);
 
-}  // namespace loadout::core
+}  // namespace singlet::core

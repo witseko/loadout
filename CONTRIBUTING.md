@@ -6,13 +6,13 @@ You need `clang++` or `g++` with C++20 support, `make`, and macOS or Linux.
 
 | Command | Result |
 | :--- | :--- |
-| `make` or `make release` | Optimized, stripped binary at `bin/loadout` |
-| `make debug` | ASan + UBSan binary at `bin/loadout-debug` |
+| `make` or `make release` | Optimized, stripped binary at `bin/singlet` |
+| `make debug` | ASan + UBSan binary at `bin/singlet-debug` |
 | `make test` | Build and run the unit tests (`tests/test_util.cpp`, `tests/test_core.cpp`) |
-| `make install-app` | Build, then add a launcher for `loadout ui`: `/Applications/Loadout.app` on macOS, `~/.local/share/applications/loadout.desktop` on Linux |
+| `make install-app` | Build, then add a launcher for `singlet ui`: `/Applications/Singlet.app` on macOS, `~/.local/share/applications/singlet.desktop` on Linux |
 | `make uninstall-app` | Remove that launcher |
 
-`scripts/app-launcher.sh` writes and removes the launcher. To test it without touching your real launcher, pass a temporary path, for example `make install-app APP_LAUNCHER=/tmp/Loadout.app`.
+`scripts/app-launcher.sh` writes and removes the launcher. To test it without touching your real launcher, pass a temporary path, for example `make install-app APP_LAUNCHER=/tmp/Singlet.app`.
 | `make clean` | Remove `bin/` |
 
 The build uses strict warnings with `-Werror`. A warning is a build failure.
@@ -29,7 +29,7 @@ make test
 cd tests/e2e && npm ci && npx playwright install chromium && npx playwright test
 ```
 
-The end-to-end suite in `tests/e2e` uses [Playwright](https://playwright.dev). It needs Node.js 24 or later. Its Node dependencies stay in `tests/e2e`, so the repository root has no `package.json`. Global setup runs `make clean && make release` first, so you test a fresh `bin/loadout`. The suite covers the CLI, JSON-RPC, MCP, and HTTP surfaces, and it drives the switchboard UI in Chromium. Each test uses a fresh temporary home folder, so it never touches your real `~/.agents` or agent folders. One test fails if `prototype/index.html` has uncommitted changes, because that file is the frozen design reference.
+The end-to-end suite in `tests/e2e` uses [Playwright](https://playwright.dev). It needs Node.js 24 or later. Its Node dependencies stay in `tests/e2e`, so the repository root has no `package.json`. Global setup runs `make clean && make release` first, so you test a fresh `bin/singlet`. The suite covers the CLI, JSON-RPC, MCP, and HTTP surfaces, and it drives the switchboard UI in Chromium. Each test uses a fresh temporary home folder, so it never touches your real `~/.agents` or agent folders. One test fails if `prototype/index.html` has uncommitted changes, because that file is the frozen design reference.
 
 To run one file, pass its name, for example `npx playwright test ui`. Use `npx playwright test --ui` to debug interactively.
 
@@ -46,8 +46,8 @@ See [docs/architecture.md](docs/architecture.md). In short: `src/util` has pure 
 - **No third-party dependencies** in the C++ code. Use the standard library and POSIX.
 - **UI files are copied into the binary.** When you edit `src/ui/index.html`, `src/ui/app.css`, or `src/ui/switchboard.js`, make the same change in `src/ui/embedded_ui.hpp`.
 - **RPC contract.** When you add or change a JSON-RPC method in `src/surfaces/rpc.cpp`, update `contrib/t3code-plugin/src/protocol.ts` to match.
-- **Never lose user data.** Any code that replaces a real folder must quarantine it first and record it so `loadout undo` can restore it.
-- **Test in a sandbox.** Use `--home <tmp-dir>` or `LOADOUT_HOME` when you try changes by hand.
+- **Never lose user data.** Any code that replaces a real folder must quarantine it first and record it so `singlet undo` can restore it.
+- **Test in a sandbox.** Use `--home <tmp-dir>` or `SINGLET_HOME` when you try changes by hand.
 - Keep functions small and names descriptive. Add a one-line doc comment (`///`) to every public type and function.
 
 ## Commits and pull requests
@@ -58,7 +58,7 @@ See [docs/architecture.md](docs/architecture.md). In short: `src/util` has pure 
 
 ## Release
 
-1. Set `LOADOUT_VERSION` in `src/surfaces/cli.hpp` to the new version, for example `0.2.0`.
+1. Set `SINGLET_VERSION` in `src/surfaces/cli.hpp` to the new version, for example `0.2.0`.
 2. In [CHANGELOG.md](CHANGELOG.md), rename `Unreleased` to `[0.2.0] - <date>`, add a new empty `Unreleased` section, and update the compare links at the bottom.
 3. Merge these changes to `main`.
 4. Tag the merge commit and push the tag:
@@ -67,4 +67,4 @@ See [docs/architecture.md](docs/architecture.md). In short: `src/util` has pure 
    git tag v0.2.0 && git push origin v0.2.0
    ```
 
-The tag starts `.github/workflows/release.yml`. It fails if the tag does not match `LOADOUT_VERSION` or if CHANGELOG.md has no section for the version. It runs the unit tests and builds binaries for macOS (`arm64`, `x86_64`) and Linux (`x86_64`, `arm64`). Then it publishes a GitHub release with the archives, a `SHA256SUMS` file, and the CHANGELOG section as release notes.
+The tag starts `.github/workflows/release.yml`. It fails if the tag does not match `SINGLET_VERSION` or if CHANGELOG.md has no section for the version. It runs the unit tests and builds binaries for macOS (`arm64`, `x86_64`) and Linux (`x86_64`, `arm64`). Then it publishes a GitHub release with the archives, a `SHA256SUMS` file, and the CHANGELOG section as release notes.

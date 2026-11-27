@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { BUILD_LOG_PATH, LOADOUT_BIN, REPO_ROOT, VERSION_TIMINGS_PATH } from '../support/paths.js';
+import { BUILD_LOG_PATH, SINGLET_BIN, REPO_ROOT, VERSION_TIMINGS_PATH } from '../support/paths.js';
 
 const MAX_BINARY_BYTES = 1.5 * 1024 * 1024;
 const MAX_MEDIAN_VERSION_MS = 10;
@@ -39,13 +39,13 @@ test('repository files contain no en or em dashes', () => {
 
 test('binary links only libc++ and libSystem on macOS', () => {
   test.skip(process.platform !== 'darwin', 'otool check is macOS only');
-  const otoolLines = execFileSync('otool', ['-L', LOADOUT_BIN], { encoding: 'utf8' }).trim().split('\n').slice(1);
+  const otoolLines = execFileSync('otool', ['-L', SINGLET_BIN], { encoding: 'utf8' }).trim().split('\n').slice(1);
   const linkedLibs = otoolLines.map((line) => line.trim().split(/\s+/)[0] ?? '');
   expect(linkedLibs.filter((lib) => !ALLOWED_DARWIN_LIBS.has(lib))).toEqual([]);
 });
 
 test('stripped binary is smaller than 1.5 MB', () => {
-  expect(fs.statSync(LOADOUT_BIN).size).toBeLessThan(MAX_BINARY_BYTES);
+  expect(fs.statSync(SINGLET_BIN).size).toBeLessThan(MAX_BINARY_BYTES);
 });
 
 test('cold --version median latency is under 10 ms', () => {

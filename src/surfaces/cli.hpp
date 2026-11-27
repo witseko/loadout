@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
-inline constexpr const char* LOADOUT_VERSION = "0.1.0";
+inline constexpr const char* SINGLET_VERSION = "0.1.0";
 
 /// Parsed top-level CLI options extracted from argv.
 struct CliOptions {
@@ -16,7 +16,7 @@ struct CliOptions {
     std::vector<std::string> args;
 };
 
-/// Resolve effective home directory honoring: --home, LOADOUT_HOME, then HOME.
+/// Resolve effective home directory honoring: --home, SINGLET_HOME, then HOME.
 [[nodiscard]] std::filesystem::path resolve_home_dir(const std::optional<std::filesystem::path>& home_override);
 
 /// Parse top-level arguments, extracting --home anywhere in argv.
@@ -25,4 +25,4 @@ struct CliOptions {
 /// Main CLI entrypoint; returns process exit code.
 [[nodiscard]] int run_cli(int argc, char** argv);
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

@@ -1,4 +1,4 @@
-/** HTTP surface of `loadout ui`: static assets, catalog, toggles, skill files, and profiles. */
+/** HTTP surface of `singlet ui`: static assets, catalog, toggles, skill files, and profiles. */
 import fs from 'node:fs';
 import { expect, test } from '../support/fixtures.js';
 import { isSymlink, pathExists } from '../support/fs-checks.js';
@@ -19,13 +19,13 @@ test('serves the embedded UI assets without external links', async ({ sandbox, s
   const page = await request.get(`${url}/`);
   expect(page.status()).toBe(200);
   const html = await page.text();
-  expect(html).toContain('<loadout-switchboard');
+  expect(html).toContain('<singlet-switchboard');
   for (const host of EXTERNAL_HOSTS) {
     expect(html).not.toContain(host);
   }
 
   const css = await (await request.get(`${url}/app.css`)).text();
-  expect(css).toContain('--loadout-');
+  expect(css).toContain('--singlet-');
   expect(css.toUpperCase()).toContain('#E0DDBD');
   expect(css.toUpperCase()).toContain('#C8D46A');
   expect(css).toMatch(/\[data-theme=["']light["']\]/);
@@ -33,7 +33,7 @@ test('serves the embedded UI assets without external links', async ({ sandbox, s
   const script = await request.get(`${url}/switchboard.js`);
   expect(script.status()).toBe(200);
   const js = await script.text();
-  expect(js).toContain('loadout-switchboard');
+  expect(js).toContain('singlet-switchboard');
   expect(js).toContain('customElements');
 });
 

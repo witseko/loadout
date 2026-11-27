@@ -1,8 +1,8 @@
 {
-  "name": "@loadout/t3code-plugin",
+  "name": "@singlet/t3code-plugin",
   "version": "0.1.0",
   "private": true,
-  "description": "T3 Code (pingdotgg/t3code) Effect-TS server plugin and React 19 UI integration for loadout: the zero-dependency AI agent skill switchboard.",
+  "description": "T3 Code (pingdotgg/t3code) Effect-TS server plugin and React 19 UI integration for singlet: the zero-dependency AI agent skill switchboard.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -16,16 +16,16 @@
       "default": "./src/protocol.ts"
     },
     "./server": {
-      "types": "./src/server/LoadoutService.ts",
-      "default": "./src/server/LoadoutService.ts"
+      "types": "./src/server/SingletService.ts",
+      "default": "./src/server/SingletService.ts"
     },
     "./server/rpc": {
-      "types": "./src/server/LoadoutRpcClient.ts",
-      "default": "./src/server/LoadoutRpcClient.ts"
+      "types": "./src/server/SingletRpcClient.ts",
+      "default": "./src/server/SingletRpcClient.ts"
     },
     "./web": {
-      "types": "./src/web/LoadoutSwitchboardDrawer.tsx",
-      "default": "./src/web/LoadoutSwitchboardDrawer.tsx"
+      "types": "./src/web/SingletSwitchboardDrawer.tsx",
+      "default": "./src/web/SingletSwitchboardDrawer.tsx"
     },
     "./web/composer": {
       "types": "./src/web/ComposerSkillPickerBadge.tsx",
@@ -57,7 +57,7 @@
     "node": ">=20.0.0"
   },
   "keywords": [
-    "loadout",
+    "singlet",
     "t3code",
     "skills",
     "effect-ts",

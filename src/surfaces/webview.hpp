@@ -2,11 +2,11 @@
 
 #include <string>
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
 /// Configuration options for the native OS desktop window (macOS WKWebView / Linux WebKitGTK).
 struct NativeWindowOptions {
-    std::string title = "loadout";
+    std::string title = "singlet";
     std::string url;
     int width = 1360;
     int height = 860;
@@ -29,4 +29,4 @@ enum class NativeWindowResult {
 /// Thread-safe request to close an active native window (e.g. when SIGINT/SIGTERM stops the server).
 void request_native_window_close();
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

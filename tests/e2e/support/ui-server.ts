@@ -1,19 +1,19 @@
-/** Starts `loadout ui` on a random port inside a sandbox. */
+/** Starts `singlet ui` on a random port inside a sandbox. */
 import { spawn, type ChildProcess } from 'node:child_process';
-import { LOADOUT_BIN } from './paths.js';
+import { SINGLET_BIN } from './paths.js';
 import type { Sandbox } from './sandbox.js';
 
 const STARTUP_TIMEOUT_MS = 10_000;
-const UI_URL_PATTERN = /LOADOUT_UI_URL=(http:\/\/127\.0\.0\.1:\d+)/;
+const UI_URL_PATTERN = /SINGLET_UI_URL=(http:\/\/127\.0\.0\.1:\d+)/;
 
 export interface UiServer {
   url: string;
   stop: () => Promise<void>;
 }
 
-/** Spawns `loadout ui --port 0 --no-open` and resolves once it prints its URL. */
+/** Spawns `singlet ui --port 0 --no-open` and resolves once it prints its URL. */
 export async function startUiServer(sandbox: Sandbox): Promise<UiServer> {
-  const child = spawn(LOADOUT_BIN, ['--home', sandbox.root, 'ui', '--port', '0', '--no-open'], {
+  const child = spawn(SINGLET_BIN, ['--home', sandbox.root, 'ui', '--port', '0', '--no-open'], {
     env: sandbox.env(),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -26,7 +26,7 @@ function waitForUrl(child: ChildProcess): Promise<string> {
     let output = '';
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error(`Timed out waiting for LOADOUT_UI_URL. Output:\n${output}`));
+      reject(new Error(`Timed out waiting for SINGLET_UI_URL. Output:\n${output}`));
     }, STARTUP_TIMEOUT_MS);
 
     const onData = (chunk: Buffer): void => {
@@ -41,7 +41,7 @@ function waitForUrl(child: ChildProcess): Promise<string> {
     child.stderr?.on('data', onData);
     child.once('exit', (code) => {
       clearTimeout(timer);
-      reject(new Error(`loadout ui exited early with code ${code}. Output:\n${output}`));
+      reject(new Error(`singlet ui exited early with code ${code}. Output:\n${output}`));
     });
   });
 }

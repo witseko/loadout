@@ -4,7 +4,7 @@
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import { BUILD_LOG_PATH, BUILD_OUTPUT_DIR, LOADOUT_BIN, REPO_ROOT, VERSION_TIMINGS_PATH } from './support/paths.js';
+import { BUILD_LOG_PATH, BUILD_OUTPUT_DIR, SINGLET_BIN, REPO_ROOT, VERSION_TIMINGS_PATH } from './support/paths.js';
 
 const VERSION_RUNS = 10;
 
@@ -26,10 +26,10 @@ function measureVersionLatency(): { version: string; timingsMs: number[] } {
   let version = '';
   for (let run = 0; run < VERSION_RUNS; run++) {
     const start = process.hrtime.bigint();
-    const result = spawnSync(LOADOUT_BIN, ['--version'], { encoding: 'utf8' });
+    const result = spawnSync(SINGLET_BIN, ['--version'], { encoding: 'utf8' });
     const end = process.hrtime.bigint();
     if (result.status !== 0) {
-      throw new Error(`loadout --version exited ${result.status}: ${result.stderr}`);
+      throw new Error(`singlet --version exited ${result.status}: ${result.stderr}`);
     }
     version = result.stdout.trim();
     timingsMs.push(Number(end - start) / 1e6);

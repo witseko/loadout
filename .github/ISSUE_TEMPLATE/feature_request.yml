@@ -6,7 +6,7 @@ body:
     id: problem
     attributes:
       label: Problem
-      description: What do you want to do that loadout does not let you do now?
+      description: What do you want to do that singlet does not let you do now?
     validations:
       required: true
   - type: textarea

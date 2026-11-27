@@ -27,14 +27,14 @@
 #include "ui/embedded_ui.hpp"
 #include "util/json.hpp"
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
 namespace {
 
-using loadout::core::AdapterKind;
-using loadout::core::Engine;
-using loadout::core::TargetInstance;
-using loadout::util::JsonValue;
+using singlet::core::AdapterKind;
+using singlet::core::Engine;
+using singlet::core::TargetInstance;
+using singlet::util::JsonValue;
 
 std::atomic<bool> g_http_stop{false};
 
@@ -187,7 +187,7 @@ HttpResponse json_response(const JsonValue& val, int status = 200, const char* s
         status,
         status_text,
         "application/json; charset=utf-8",
-        loadout::util::to_json(val, false),
+        singlet::util::to_json(val, false),
     };
 }
 
@@ -198,7 +198,7 @@ HttpResponse error_response(int status, const char* status_text, std::string mes
     return json_response(obj, status, status_text);
 }
 
-/// Returns a 403 response when a request did not come from the loadout UI's own origin.
+/// Returns a 403 response when a request did not come from the singlet UI's own origin.
 ///
 /// Blocks other web pages (cross-site requests) and DNS rebinding from driving the API.
 /// Requiring a JSON Content-Type on POST forces a CORS preflight, which browsers fail
@@ -298,7 +298,7 @@ bool parse_request_headers(ClientConn& conn, HttpRequest& out_req) {
 void broadcast_sse_catalog(std::vector<int>& sse_fds, Engine& engine) {
     if (sse_fds.empty()) return;
     std::string payload = "event: catalog\ndata: " +
-                          loadout::util::to_json(loadout::core::to_catalog_json(engine.get_catalog()), false) +
+                          singlet::util::to_json(singlet::core::to_catalog_json(engine.get_catalog()), false) +
                           "\n\n";
     auto it = sse_fds.begin();
     while (it != sse_fds.end()) {
@@ -333,23 +333,23 @@ HttpResponse handle_api_request(
 
     // Embedded UI static assets
     if (req.method == "GET" && (req.path == "/" || req.path == "/index.html")) {
-        return HttpResponse{200, "OK", "text/html; charset=utf-8", std::string(loadout::ui::INDEX_HTML)};
+        return HttpResponse{200, "OK", "text/html; charset=utf-8", std::string(singlet::ui::INDEX_HTML)};
     }
     if (req.method == "GET" && req.path == "/app.css") {
-        return HttpResponse{200, "OK", "text/css; charset=utf-8", std::string(loadout::ui::APP_CSS)};
+        return HttpResponse{200, "OK", "text/css; charset=utf-8", std::string(singlet::ui::APP_CSS)};
     }
     if (req.method == "GET" && req.path == "/switchboard.js") {
-        return HttpResponse{200, "OK", "application/javascript; charset=utf-8", std::string(loadout::ui::SWITCHBOARD_JS)};
+        return HttpResponse{200, "OK", "application/javascript; charset=utf-8", std::string(singlet::ui::SWITCHBOARD_JS)};
     }
 
     // GET /api/catalog
     if (req.method == "GET" && req.path == "/api/catalog") {
-        return json_response(loadout::core::to_catalog_json(engine.get_catalog()));
+        return json_response(singlet::core::to_catalog_json(engine.get_catalog()));
     }
 
     // GET /api/profiles
     if (req.method == "GET" && req.path == "/api/profiles") {
-        return json_response(loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile()));
+        return json_response(singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile()));
     }
 
     // GET /api/skill?slug=...
@@ -367,7 +367,7 @@ HttpResponse handle_api_request(
         if (!detail.found) {
             return error_response(404, "Not Found", detail.error.empty() ? "Skill not found" : detail.error);
         }
-        return json_response(loadout::core::to_skill_detail_json(detail));
+        return json_response(singlet::core::to_skill_detail_json(detail));
     }
 
     // Parse JSON body for POST endpoints
@@ -375,7 +375,7 @@ HttpResponse handle_api_request(
         if (trim_ws(req.body).empty()) {
             return JsonValue::object();
         }
-        return loadout::util::parse_json(req.body);
+        return singlet::util::parse_json(req.body);
     };
 
     if (req.method == "POST" && req.path == "/api/scan") {
@@ -387,13 +387,13 @@ HttpResponse handle_api_request(
         if (const JsonValue* arr = body_opt->find("roots"); arr && arr->is_array()) {
             for (const auto& item : arr->as_array()) {
                 if (item.is_string() && !item.as_string().empty()) {
-                    roots.push_back(loadout::core::expand_home_path(item.as_string(), engine.home_dir()));
+                    roots.push_back(singlet::core::expand_home_path(item.as_string(), engine.home_dir()));
                 }
             }
         }
         auto snap = engine.scan(roots);
         out_mutated = true;
-        return json_response(loadout::core::to_catalog_json(snap));
+        return json_response(singlet::core::to_catalog_json(snap));
     }
 
     if (req.method == "POST" && req.path == "/api/toggle") {
@@ -410,13 +410,13 @@ HttpResponse handle_api_request(
             return error_response(400, "Bad Request", "Missing 'skill' or 'targetId'");
         }
         auto res = engine.toggle_skill(skill, target_id, enabled);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("skill", skill);
         out.set("targetId", target_id);
         out.set("enabled", enabled);
         if (res.ok) {
             out_mutated = true;
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
     }
@@ -437,10 +437,10 @@ HttpResponse handle_api_request(
             }
         }
         auto res = engine.consolidate(dry_run, promote);
-        JsonValue out = loadout::core::to_consolidate_result_json(res);
+        JsonValue out = singlet::core::to_consolidate_result_json(res);
         if (!dry_run && res.ok) {
             out_mutated = true;
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
     }
@@ -459,12 +459,12 @@ HttpResponse handle_api_request(
             return error_response(400, "Bad Request", "Missing 'slug' or 'chosenPath'");
         }
         auto res = engine.resolve_drift(slug, chosen_path, keep_both);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("slug", slug);
         out.set("chosenPath", chosen_path);
         if (res.ok) {
             out_mutated = true;
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
     }
@@ -483,10 +483,10 @@ HttpResponse handle_api_request(
             t.display_name = body.get_str("displayName", "");
             if (t.display_name.empty()) t.display_name = body.get_str("name", t.id);
             std::string adapter_str = body.get_str("adapter", body.get_str("kind", "custom-lenient"));
-            t.adapter = loadout::core::adapter_from_string(adapter_str).value_or(AdapterKind::CustomLenient);
+            t.adapter = singlet::core::adapter_from_string(adapter_str).value_or(AdapterKind::CustomLenient);
             t.group = body.get_str("group", "");
-            if (t.group.empty()) t.group = std::string(loadout::core::adapter_default_group(t.adapter));
-            t.skills_dir = loadout::core::expand_home_path(body.get_str("skillsDir", ""), engine.home_dir());
+            if (t.group.empty()) t.group = std::string(singlet::core::adapter_default_group(t.adapter));
+            t.skills_dir = singlet::core::expand_home_path(body.get_str("skillsDir", ""), engine.home_dir());
             std::string env_hint = body.get_str("envHint", "");
             if (!env_hint.empty()) t.env_hint = env_hint;
             t.configured = true;
@@ -499,11 +499,11 @@ HttpResponse handle_api_request(
             if (clone_from.empty()) clone_from = body.get_str("fromId", "");
 
             auto res = engine.add_target(t, clone_from);
-            JsonValue out = loadout::core::to_operation_result_json(res);
-            out.set("target", loadout::core::to_target_json(t));
+            JsonValue out = singlet::core::to_operation_result_json(res);
+            out.set("target", singlet::core::to_target_json(t));
             if (res.ok) {
                 out_mutated = true;
-                out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+                out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
             }
             return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
         }
@@ -514,11 +514,11 @@ HttpResponse handle_api_request(
                 return error_response(400, "Bad Request", "target remove requires 'id'");
             }
             auto res = engine.remove_target(id);
-            JsonValue out = loadout::core::to_operation_result_json(res);
+            JsonValue out = singlet::core::to_operation_result_json(res);
             out.set("id", id);
             if (res.ok) {
                 out_mutated = true;
-                out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+                out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
             }
             return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
         }
@@ -531,12 +531,12 @@ HttpResponse handle_api_request(
                 return error_response(400, "Bad Request", "target clone requires 'fromId' and 'id'/'toId'");
             }
             auto res = engine.clone_target(from_id, to_id);
-            JsonValue out = loadout::core::to_operation_result_json(res);
+            JsonValue out = singlet::core::to_operation_result_json(res);
             out.set("fromId", from_id);
             out.set("toId", to_id);
             if (res.ok) {
                 out_mutated = true;
-                out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+                out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
             }
             return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
         }
@@ -557,12 +557,12 @@ HttpResponse handle_api_request(
             return error_response(400, "Bad Request", "Missing 'skill'");
         }
         auto res = engine.fix_frontmatter(skill, apply);
-        JsonValue out = loadout::core::to_frontmatter_fix_json(res);
+        JsonValue out = singlet::core::to_frontmatter_fix_json(res);
         out.set("skill", skill);
         out.set("unifiedDiff", res.diff);
         if (apply && res.ok) {
             out_mutated = true;
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
     }
@@ -589,12 +589,12 @@ HttpResponse handle_api_request(
         auto res = rel_path.empty()
                        ? engine.save_skill_markdown(slug, content)
                        : engine.save_skill_file(slug, rel_path, content);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("slug", slug);
         out.set("relPath", rel_path.empty() ? std::string("SKILL.md") : rel_path);
         if (res.ok) {
             out_mutated = true;
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
     }
@@ -608,7 +608,7 @@ HttpResponse handle_api_request(
         std::string action = body.get_str("action", "list");
 
         if (action == "list") {
-            return json_response(loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile()));
+            return json_response(singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile()));
         }
 
         std::string name = body.get_str("name", "");
@@ -637,39 +637,39 @@ HttpResponse handle_api_request(
                 }
             }
             auto res = engine.save_profile(name, wiring, skills);
-            JsonValue out = loadout::core::to_operation_result_json(res);
+            JsonValue out = singlet::core::to_operation_result_json(res);
             out.set("name", name);
             out.set("activeProfile", engine.active_profile());
-            out.set("profiles", loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
+            out.set("profiles", singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
             if (res.ok) {
                 out_mutated = true;
-                out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+                out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
             }
             return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
         }
 
         if (action == "apply") {
             auto res = engine.apply_profile(name);
-            JsonValue out = loadout::core::to_operation_result_json(res);
+            JsonValue out = singlet::core::to_operation_result_json(res);
             out.set("name", name);
             out.set("activeProfile", engine.active_profile());
-            out.set("profiles", loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
+            out.set("profiles", singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
             if (res.ok) {
                 out_mutated = true;
-                out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+                out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
             }
             return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
         }
 
         if (action == "delete" || action == "remove") {
             auto res = engine.delete_profile(name);
-            JsonValue out = loadout::core::to_operation_result_json(res);
+            JsonValue out = singlet::core::to_operation_result_json(res);
             out.set("name", name);
             out.set("activeProfile", engine.active_profile());
-            out.set("profiles", loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
+            out.set("profiles", singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
             if (res.ok) {
                 out_mutated = true;
-                out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+                out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
             }
             return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
         }
@@ -679,10 +679,10 @@ HttpResponse handle_api_request(
 
     if (req.method == "POST" && req.path == "/api/undo") {
         auto res = engine.undo_last_quarantine();
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         if (res.ok) {
             out_mutated = true;
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
     }
@@ -715,7 +715,7 @@ int run_http_server(Engine& engine, const HttpServerOptions& opts) {
 
     int listen_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
-        std::cerr << "loadout ui: socket() failed: " << std::strerror(errno) << '\n';
+        std::cerr << "singlet ui: socket() failed: " << std::strerror(errno) << '\n';
         return 1;
     }
 
@@ -728,7 +728,7 @@ int run_http_server(Engine& engine, const HttpServerOptions& opts) {
     // Bind strictly to 127.0.0.1 for security
     if (::inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) != 1) {
         ::close(listen_fd);
-        std::cerr << "loadout ui: failed to parse 127.0.0.1\n";
+        std::cerr << "singlet ui: failed to parse 127.0.0.1\n";
         return 1;
     }
 
@@ -736,19 +736,19 @@ int run_http_server(Engine& engine, const HttpServerOptions& opts) {
         if (opts.fallback_ephemeral && opts.port != 0 && errno == EADDRINUSE) {
             addr.sin_port = htons(0);
             if (::bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-                std::cerr << "loadout ui: bind(127.0.0.1:0) failed: " << std::strerror(errno) << '\n';
+                std::cerr << "singlet ui: bind(127.0.0.1:0) failed: " << std::strerror(errno) << '\n';
                 ::close(listen_fd);
                 return 1;
             }
         } else {
-            std::cerr << "loadout ui: bind(127.0.0.1:" << opts.port << ") failed: " << std::strerror(errno) << '\n';
+            std::cerr << "singlet ui: bind(127.0.0.1:" << opts.port << ") failed: " << std::strerror(errno) << '\n';
             ::close(listen_fd);
             return 1;
         }
     }
 
     if (::listen(listen_fd, 64) != 0) {
-        std::cerr << "loadout ui: listen() failed: " << std::strerror(errno) << '\n';
+        std::cerr << "singlet ui: listen() failed: " << std::strerror(errno) << '\n';
         ::close(listen_fd);
         return 1;
     }
@@ -766,7 +766,7 @@ int run_http_server(Engine& engine, const HttpServerOptions& opts) {
     (void)engine.scan();
 
     std::string url = "http://127.0.0.1:" + std::to_string(actual_port);
-    std::cout << "LOADOUT_UI_URL=" << url << '\n' << std::flush;
+    std::cout << "SINGLET_UI_URL=" << url << '\n' << std::flush;
 
     if (opts.on_ready) {
         opts.on_ready(url);
@@ -943,4 +943,4 @@ int run_http_server(Engine& engine, const HttpServerOptions& opts) {
     return 0;
 }
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

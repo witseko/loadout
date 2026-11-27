@@ -1,9 +1,9 @@
 /**
- * @loadout/t3code-plugin: React 19 Embedded Switchboard Drawer (`apps/web`)
+ * @singlet/t3code-plugin: React 19 Embedded Switchboard Drawer (`apps/web`)
  *
- * Mounts `<loadout-switchboard mode="embedded" />` inside T3 Code's frontend
+ * Mounts `<singlet-switchboard mode="embedded" />` inside T3 Code's frontend
  * matching Artboard 6 (`.h-drawer`) tokens, segmented `Global targets` /
- * `Current Git worktree` switch, and WebSocket RPC bridge (`window.LOADOUT_TRANSPORT`
+ * `Current Git worktree` switch, and WebSocket RPC bridge (`window.SINGLET_TRANSPORT`
  * + `el.transport`).
  */
 
@@ -20,12 +20,12 @@ import {
   type SkillResolveDriftParams,
   type SkillSaveParams,
   type SkillToggleParams,
-  type LoadoutBrowserTransport,
-  type LoadoutEvent,
-  type LoadoutRpcMethod,
-  type LoadoutRpcParams,
-  type LoadoutRpcResult,
-  type LoadoutSwitchboardEvent,
+  type SingletBrowserTransport,
+  type SingletEvent,
+  type SingletRpcMethod,
+  type SingletRpcParams,
+  type SingletRpcResult,
+  type SingletSwitchboardEvent,
   type TargetAddParams,
   type TargetCloneParams,
   type TargetRemoveParams,
@@ -33,13 +33,13 @@ import {
 } from "../protocol.js";
 
 // ---------------------------------------------------------------------------
-// Global DOM & React 19 JSX Type Augmentation for `<loadout-switchboard>`
+// Global DOM & React 19 JSX Type Augmentation for `<singlet-switchboard>`
 // ---------------------------------------------------------------------------
 
 export type SwitchboardDrawerScope = "global" | "worktree";
 
-export interface LoadoutSwitchboardElement extends HTMLElement {
-  transport?: LoadoutBrowserTransport;
+export interface SingletSwitchboardElement extends HTMLElement {
+  transport?: SingletBrowserTransport;
   mode?: "standalone" | "embedded";
   scope?: SwitchboardDrawerScope;
   worktreePath?: string;
@@ -50,16 +50,16 @@ export interface LoadoutSwitchboardElement extends HTMLElement {
 
 declare global {
   interface Window {
-    LOADOUT_TRANSPORT?: LoadoutBrowserTransport;
+    SINGLET_TRANSPORT?: SingletBrowserTransport;
   }
 }
 
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "loadout-switchboard": React.DetailedHTMLProps<
-        React.HTMLAttributes<LoadoutSwitchboardElement>,
-        LoadoutSwitchboardElement
+      "singlet-switchboard": React.DetailedHTMLProps<
+        React.HTMLAttributes<SingletSwitchboardElement>,
+        SingletSwitchboardElement
       > & {
         mode?: "standalone" | "embedded";
         scope?: SwitchboardDrawerScope;
@@ -72,34 +72,34 @@ declare module "react" {
 }
 
 // ---------------------------------------------------------------------------
-// T3 Code WebSocket RPC Bridge -> `window.LOADOUT_TRANSPORT` Adapter
+// T3 Code WebSocket RPC Bridge -> `window.SINGLET_TRANSPORT` Adapter
 // ---------------------------------------------------------------------------
 
 /**
  * Minimal interface implemented by T3 Code's `apps/web` WebSocket client to
- * forward `loadout` RPC requests to `apps/server`'s `LoadoutService`.
+ * forward `singlet` RPC requests to `apps/server`'s `SingletService`.
  */
 export interface T3CodeWsBridge {
-  call<M extends LoadoutRpcMethod>(
+  call<M extends SingletRpcMethod>(
     method: M,
-    params?: LoadoutRpcParams<M>,
-  ): Promise<LoadoutRpcResult<M>>;
+    params?: SingletRpcParams<M>,
+  ): Promise<SingletRpcResult<M>>;
   subscribe?(
-    listener: (event: LoadoutEvent | LoadoutSwitchboardEvent) => void,
+    listener: (event: SingletEvent | SingletSwitchboardEvent) => void,
   ): () => void;
 }
 
 /**
- * Wraps a T3 Code WebSocket RPC bridge into the `LoadoutBrowserTransport` shape
- * consumed by `<loadout-switchboard mode="embedded">`.
+ * Wraps a T3 Code WebSocket RPC bridge into the `SingletBrowserTransport` shape
+ * consumed by `<singlet-switchboard mode="embedded">`.
  */
-export function createWsLoadoutTransport(
+export function createWsSingletTransport(
   bridge: T3CodeWsBridge,
-): LoadoutBrowserTransport {
-  const call = <M extends LoadoutRpcMethod>(
+): SingletBrowserTransport {
+  const call = <M extends SingletRpcMethod>(
     method: M,
-    params?: LoadoutRpcParams<M>,
-  ): Promise<LoadoutRpcResult<M>> => bridge.call(method, params);
+    params?: SingletRpcParams<M>,
+  ): Promise<SingletRpcResult<M>> => bridge.call(method, params);
 
   const manageTarget = (params: ManageTargetParams) => {
     switch (params.action) {
@@ -186,62 +186,62 @@ export function createWsLoadoutTransport(
 }
 
 // ---------------------------------------------------------------------------
-// Artboard 6 Theme Tokens (`--loadout-*` aligned with `prototype/index.html`)
+// Artboard 6 Theme Tokens (`--singlet-*` aligned with `prototype/index.html`)
 // ---------------------------------------------------------------------------
 
-export interface LoadoutThemeTokens {
-  readonly "--loadout-bg": string;
-  readonly "--loadout-surface": string;
-  readonly "--loadout-surface-2": string;
-  readonly "--loadout-surface-3": string;
-  readonly "--loadout-border": string;
-  readonly "--loadout-border-2": string;
-  readonly "--loadout-text": string;
-  readonly "--loadout-dim": string;
-  readonly "--loadout-muted": string;
-  readonly "--loadout-faint": string;
-  readonly "--loadout-accent": string;
-  readonly "--loadout-accent-dim": string;
-  readonly "--loadout-on-accent": string;
-  readonly "--loadout-brand-o": string;
-  readonly "--loadout-emerald": string;
-  readonly "--loadout-emerald-dim": string;
-  readonly "--loadout-amber": string;
-  readonly "--loadout-amber-dim": string;
-  readonly "--loadout-rose": string;
-  readonly "--loadout-rose-dim": string;
-  readonly "--loadout-sky": string;
-  readonly "--loadout-sky-dim": string;
-  readonly "--loadout-font-sans": string;
-  readonly "--loadout-font-mono": string;
+export interface SingletThemeTokens {
+  readonly "--singlet-bg": string;
+  readonly "--singlet-surface": string;
+  readonly "--singlet-surface-2": string;
+  readonly "--singlet-surface-3": string;
+  readonly "--singlet-border": string;
+  readonly "--singlet-border-2": string;
+  readonly "--singlet-text": string;
+  readonly "--singlet-dim": string;
+  readonly "--singlet-muted": string;
+  readonly "--singlet-faint": string;
+  readonly "--singlet-accent": string;
+  readonly "--singlet-accent-dim": string;
+  readonly "--singlet-on-accent": string;
+  readonly "--singlet-brand-o": string;
+  readonly "--singlet-emerald": string;
+  readonly "--singlet-emerald-dim": string;
+  readonly "--singlet-amber": string;
+  readonly "--singlet-amber-dim": string;
+  readonly "--singlet-rose": string;
+  readonly "--singlet-rose-dim": string;
+  readonly "--singlet-sky": string;
+  readonly "--singlet-sky-dim": string;
+  readonly "--singlet-font-sans": string;
+  readonly "--singlet-font-mono": string;
 }
 
-export const DEFAULT_T3CODE_LOADOUT_THEME: LoadoutThemeTokens = {
-  "--loadout-bg": "var(--background, #0B0D10)",
-  "--loadout-surface": "var(--card, #12151B)",
-  "--loadout-surface-2": "var(--muted, #171B22)",
-  "--loadout-surface-3": "var(--secondary, #1D222A)",
-  "--loadout-border": "var(--border, #20252E)",
-  "--loadout-border-2": "var(--input, #2C323D)",
-  "--loadout-text": "var(--foreground, #E7E9EC)",
-  "--loadout-dim": "var(--muted-foreground, #98A1B0)",
-  "--loadout-muted": "var(--muted-foreground, #98A1B0)",
-  "--loadout-faint": "#5D6676",
-  "--loadout-accent": "#E0DDBD",
-  "--loadout-accent-dim": "rgba(224, 221, 189, 0.16)",
-  "--loadout-on-accent": "#0B0D10",
-  "--loadout-brand-o": "#C8D46A",
-  "--loadout-emerald": "#3DDC97",
-  "--loadout-emerald-dim": "rgba(61, 220, 151, 0.14)",
-  "--loadout-amber": "#F5B544",
-  "--loadout-amber-dim": "rgba(245, 181, 68, 0.14)",
-  "--loadout-rose": "#F2647A",
-  "--loadout-rose-dim": "rgba(242, 100, 122, 0.14)",
-  "--loadout-sky": "#6CB6FF",
-  "--loadout-sky-dim": "rgba(108, 182, 255, 0.14)",
-  "--loadout-font-sans":
+export const DEFAULT_T3CODE_SINGLET_THEME: SingletThemeTokens = {
+  "--singlet-bg": "var(--background, #0B0D10)",
+  "--singlet-surface": "var(--card, #12151B)",
+  "--singlet-surface-2": "var(--muted, #171B22)",
+  "--singlet-surface-3": "var(--secondary, #1D222A)",
+  "--singlet-border": "var(--border, #20252E)",
+  "--singlet-border-2": "var(--input, #2C323D)",
+  "--singlet-text": "var(--foreground, #E7E9EC)",
+  "--singlet-dim": "var(--muted-foreground, #98A1B0)",
+  "--singlet-muted": "var(--muted-foreground, #98A1B0)",
+  "--singlet-faint": "#5D6676",
+  "--singlet-accent": "#E0DDBD",
+  "--singlet-accent-dim": "rgba(224, 221, 189, 0.16)",
+  "--singlet-on-accent": "#0B0D10",
+  "--singlet-brand-o": "#C8D46A",
+  "--singlet-emerald": "#3DDC97",
+  "--singlet-emerald-dim": "rgba(61, 220, 151, 0.14)",
+  "--singlet-amber": "#F5B544",
+  "--singlet-amber-dim": "rgba(245, 181, 68, 0.14)",
+  "--singlet-rose": "#F2647A",
+  "--singlet-rose-dim": "rgba(242, 100, 122, 0.14)",
+  "--singlet-sky": "#6CB6FF",
+  "--singlet-sky-dim": "rgba(108, 182, 255, 0.14)",
+  "--singlet-font-sans":
     "var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif)",
-  "--loadout-font-mono":
+  "--singlet-font-mono":
     "var(--font-mono, 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace)",
 };
 
@@ -249,7 +249,7 @@ export const DEFAULT_T3CODE_LOADOUT_THEME: LoadoutThemeTokens = {
 // Lazy Web Component Script / CSS Loader
 // ---------------------------------------------------------------------------
 
-function useLoadoutComponentAssets(
+function useSingletComponentAssets(
   enabled: boolean,
   scriptUrl?: string,
   cssUrl?: string,
@@ -257,7 +257,7 @@ function useLoadoutComponentAssets(
   const isRegistered =
     typeof window !== "undefined" &&
     typeof window.customElements !== "undefined" &&
-    Boolean(window.customElements.get("loadout-switchboard"));
+    Boolean(window.customElements.get("singlet-switchboard"));
 
   const [ready, setReady] = useState<boolean>(isRegistered || !scriptUrl);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -267,20 +267,20 @@ function useLoadoutComponentAssets(
 
     if (cssUrl) {
       const existingCss = document.querySelector<HTMLLinkElement>(
-        `link[data-loadout-css="${CSS.escape(cssUrl)}"]`,
+        `link[data-singlet-css="${CSS.escape(cssUrl)}"]`,
       );
       if (!existingCss) {
         const link = document.createElement("link");
         link.rel = "stylesheet";
         link.href = cssUrl;
-        link.dataset.loadoutCss = cssUrl;
+        link.dataset.singletCss = cssUrl;
         document.head.appendChild(link);
       }
     }
 
     if (
       typeof window !== "undefined" &&
-      window.customElements?.get("loadout-switchboard")
+      window.customElements?.get("singlet-switchboard")
     ) {
       setReady(true);
       setLoadError(null);
@@ -293,7 +293,7 @@ function useLoadoutComponentAssets(
     }
 
     let cancelled = false;
-    const selector = `script[data-loadout-js="${CSS.escape(scriptUrl)}"]`;
+    const selector = `script[data-singlet-js="${CSS.escape(scriptUrl)}"]`;
     const existingScript = document.querySelector<HTMLScriptElement>(selector);
 
     const onLoad = () => {
@@ -305,13 +305,13 @@ function useLoadoutComponentAssets(
     const onError = () => {
       if (!cancelled) {
         setLoadError(
-          `Failed to load loadout switchboard bundle from "${scriptUrl}".`,
+          `Failed to load singlet switchboard bundle from "${scriptUrl}".`,
         );
       }
     };
 
     if (existingScript) {
-      if (existingScript.dataset.loadoutLoaded === "true") {
+      if (existingScript.dataset.singletLoaded === "true") {
         setReady(true);
         return;
       }
@@ -328,9 +328,9 @@ function useLoadoutComponentAssets(
     script.src = scriptUrl;
     script.type = "module";
     script.async = true;
-    script.dataset.loadoutJs = scriptUrl;
+    script.dataset.singletJs = scriptUrl;
     script.addEventListener("load", () => {
-      script.dataset.loadoutLoaded = "true";
+      script.dataset.singletLoaded = "true";
       onLoad();
     });
     script.addEventListener("error", onError);
@@ -345,19 +345,19 @@ function useLoadoutComponentAssets(
 }
 
 // ---------------------------------------------------------------------------
-// `<LoadoutSwitchboardDrawer />` Component (Artboard 6 `.h-drawer`)
+// `<SingletSwitchboardDrawer />` Component (Artboard 6 `.h-drawer`)
 // ---------------------------------------------------------------------------
 
-export interface LoadoutSwitchboardDrawerProps {
+export interface SingletSwitchboardDrawerProps {
   /** Whether the embedded switchboard drawer is open. */
   readonly open: boolean;
   /** Called when the user closes the drawer (close button, backdrop, or Escape). */
   readonly onClose: () => void;
-  /** T3 Code WebSocket RPC bridge (automatically wrapped into `LoadoutBrowserTransport`). */
+  /** T3 Code WebSocket RPC bridge (automatically wrapped into `SingletBrowserTransport`). */
   readonly wsBridge?: T3CodeWsBridge;
-  /** Pre-built `LoadoutBrowserTransport` (takes precedence over `wsBridge`). */
-  readonly transport?: LoadoutBrowserTransport;
-  /** Optional URL serving `switchboard.js` (e.g. from `loadout --dump-ui-js`). */
+  /** Pre-built `SingletBrowserTransport` (takes precedence over `wsBridge`). */
+  readonly transport?: SingletBrowserTransport;
+  /** Optional URL serving `switchboard.js` (e.g. from `singlet --dump-ui-js`). */
   readonly scriptUrl?: string;
   /** Optional URL serving `app.css`. */
   readonly cssUrl?: string;
@@ -367,21 +367,21 @@ export interface LoadoutSwitchboardDrawerProps {
   readonly onScopeChange?: (scope: SwitchboardDrawerScope) => void;
   /** Active thread worktree path when inspecting `"worktree"` scope. */
   readonly worktreePath?: string;
-  /** Active repository name passed to `<loadout-switchboard repo-name="..." />`. */
+  /** Active repository name passed to `<singlet-switchboard repo-name="..." />`. */
   readonly repoName?: string;
   /** Active target instance id for the current T3 Code thread (e.g. `"claude-second"`). */
   readonly activeTargetId?: string;
   /** Optional callback for the footer `Open full switchboard` action. */
   readonly onOpenFullSwitchboard?: () => void;
-  /** Optional `--loadout-*` CSS custom property overrides. */
-  readonly theme?: Partial<LoadoutThemeTokens>;
+  /** Optional `--singlet-*` CSS custom property overrides. */
+  readonly theme?: Partial<SingletThemeTokens>;
   /** Drawer width (defaults to `"min(420px, 94vw)"` matching Artboard 6 compact drawer). */
   readonly width?: string | number;
   /** Drawer header title (defaults to `"Skills"`). */
   readonly title?: string;
 }
 
-export function LoadoutSwitchboardDrawer({
+export function SingletSwitchboardDrawer({
   open,
   onClose,
   wsBridge,
@@ -397,8 +397,8 @@ export function LoadoutSwitchboardDrawer({
   theme,
   width = "min(420px, 94vw)",
   title = "Skills",
-}: LoadoutSwitchboardDrawerProps): React.ReactElement | null {
-  const switchboardRef = useRef<LoadoutSwitchboardElement | null>(null);
+}: SingletSwitchboardDrawerProps): React.ReactElement | null {
+  const switchboardRef = useRef<SingletSwitchboardElement | null>(null);
   const [internalScope, setInternalScope] = useState<SwitchboardDrawerScope>(
     scope ?? "global",
   );
@@ -418,22 +418,22 @@ export function LoadoutSwitchboardDrawer({
     onScopeChange?.(next);
   };
 
-  const resolvedTransport = useMemo<LoadoutBrowserTransport | undefined>(() => {
+  const resolvedTransport = useMemo<SingletBrowserTransport | undefined>(() => {
     if (transport) return transport;
-    if (wsBridge) return createWsLoadoutTransport(wsBridge);
+    if (wsBridge) return createWsSingletTransport(wsBridge);
     return undefined;
   }, [transport, wsBridge]);
 
-  const { ready, loadError } = useLoadoutComponentAssets(open, scriptUrl, cssUrl);
+  const { ready, loadError } = useSingletComponentAssets(open, scriptUrl, cssUrl);
 
-  // Install `window.LOADOUT_TRANSPORT` & direct `el.transport` property
+  // Install `window.SINGLET_TRANSPORT` & direct `el.transport` property
   useEffect(() => {
     if (!open || !resolvedTransport || typeof window === "undefined") {
       return;
     }
 
-    const previousTransport = window.LOADOUT_TRANSPORT;
-    window.LOADOUT_TRANSPORT = resolvedTransport;
+    const previousTransport = window.SINGLET_TRANSPORT;
+    window.SINGLET_TRANSPORT = resolvedTransport;
 
     const el = switchboardRef.current;
     if (el) {
@@ -446,17 +446,17 @@ export function LoadoutSwitchboardDrawer({
     }
 
     return () => {
-      if (window.LOADOUT_TRANSPORT === resolvedTransport) {
+      if (window.SINGLET_TRANSPORT === resolvedTransport) {
         if (previousTransport === undefined) {
-          delete window.LOADOUT_TRANSPORT;
+          delete window.SINGLET_TRANSPORT;
         } else {
-          window.LOADOUT_TRANSPORT = previousTransport;
+          window.SINGLET_TRANSPORT = previousTransport;
         }
       }
     };
   }, [open, resolvedTransport, ready, activeScope, worktreePath, repoName, activeTargetId]);
 
-  // Close drawer on Escape (when not captured by an inner modal inside `<loadout-switchboard>`)
+  // Close drawer on Escape (when not captured by an inner modal inside `<singlet-switchboard>`)
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -471,7 +471,7 @@ export function LoadoutSwitchboardDrawer({
   const mergedThemeStyle = useMemo<React.CSSProperties>(
     () =>
       ({
-        ...DEFAULT_T3CODE_LOADOUT_THEME,
+        ...DEFAULT_T3CODE_SINGLET_THEME,
         ...theme,
       }) as React.CSSProperties,
     [theme],
@@ -482,9 +482,9 @@ export function LoadoutSwitchboardDrawer({
   const segButtonStyle = (pressed: boolean): React.CSSProperties => ({
     flex: 1,
     border: 0,
-    background: pressed ? "var(--loadout-surface-3)" : "transparent",
-    color: pressed ? "var(--loadout-text)" : "var(--loadout-dim)",
-    boxShadow: pressed ? "0 0 0 1px var(--loadout-border-2)" : "none",
+    background: pressed ? "var(--singlet-surface-3)" : "transparent",
+    color: pressed ? "var(--singlet-text)" : "var(--singlet-dim)",
+    boxShadow: pressed ? "0 0 0 1px var(--singlet-border-2)" : "none",
     height: "24px",
     padding: "0 9px",
     borderRadius: "5px",
@@ -523,11 +523,11 @@ export function LoadoutSwitchboardDrawer({
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          backgroundColor: "var(--loadout-surface)",
-          color: "var(--loadout-text)",
-          borderLeft: "1px solid var(--loadout-border-2)",
+          backgroundColor: "var(--singlet-surface)",
+          color: "var(--singlet-text)",
+          borderLeft: "1px solid var(--singlet-border-2)",
           boxShadow: "0 24px 64px rgba(0, 0, 0, 0.55)",
-          fontFamily: "var(--loadout-font-sans)",
+          fontFamily: "var(--singlet-font-sans)",
         }}
       >
         <header
@@ -535,37 +535,37 @@ export function LoadoutSwitchboardDrawer({
             display: "grid",
             gap: "8px",
             padding: "10px 12px",
-            borderBottom: "1px solid var(--loadout-border)",
-            backgroundColor: "var(--loadout-surface)",
+            borderBottom: "1px solid var(--singlet-border)",
+            backgroundColor: "var(--singlet-surface)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <b
               style={{
-                fontFamily: "var(--loadout-font-mono)",
+                fontFamily: "var(--singlet-font-mono)",
                 fontSize: "13px",
                 fontWeight: 700,
                 letterSpacing: "-0.02em",
               }}
             >
-              l
-              <i style={{ color: "var(--loadout-brand-o)", fontStyle: "normal" }}>
-                o
+              s
+              <i style={{ color: "var(--singlet-brand-o)", fontStyle: "normal" }}>
+                i
               </i>
-              adout
+              nglet
             </b>
             <span style={{ fontSize: "13px", fontWeight: 600 }}>{title}</span>
             <span
               style={{
-                fontFamily: "var(--loadout-font-mono)",
+                fontFamily: "var(--singlet-font-mono)",
                 fontSize: "10.5px",
-                color: "var(--loadout-faint)",
+                color: "var(--singlet-faint)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
-              &lt;loadout-switchboard mode=&quot;embedded&quot;&gt;
+              &lt;singlet-switchboard mode=&quot;embedded&quot;&gt;
             </span>
             <button
               type="button"
@@ -575,13 +575,13 @@ export function LoadoutSwitchboardDrawer({
                 marginLeft: "auto",
                 cursor: "pointer",
                 background: "transparent",
-                color: "var(--loadout-dim)",
+                color: "var(--singlet-dim)",
                 border: "1px solid transparent",
                 borderRadius: "6px",
                 height: "24px",
                 padding: "0 8px",
                 fontSize: "12px",
-                fontFamily: "var(--loadout-font-mono)",
+                fontFamily: "var(--singlet-font-mono)",
               }}
             >
               ✕
@@ -593,10 +593,10 @@ export function LoadoutSwitchboardDrawer({
             aria-label="Switchboard scope"
             style={{
               display: "inline-flex",
-              border: "1px solid var(--loadout-border-2)",
+              border: "1px solid var(--singlet-border-2)",
               borderRadius: "7px",
               padding: "2px",
-              backgroundColor: "var(--loadout-surface-2)",
+              backgroundColor: "var(--singlet-surface-2)",
               gap: "2px",
             }}
           >
@@ -631,9 +631,9 @@ export function LoadoutSwitchboardDrawer({
             <div
               style={{
                 padding: "18px 14px",
-                fontFamily: "var(--loadout-font-mono)",
+                fontFamily: "var(--singlet-font-mono)",
                 fontSize: "11.5px",
-                color: "var(--loadout-rose)",
+                color: "var(--singlet-rose)",
               }}
             >
               {loadError}
@@ -642,15 +642,15 @@ export function LoadoutSwitchboardDrawer({
             <div
               style={{
                 padding: "18px 14px",
-                fontFamily: "var(--loadout-font-mono)",
+                fontFamily: "var(--singlet-font-mono)",
                 fontSize: "11.5px",
-                color: "var(--loadout-faint)",
+                color: "var(--singlet-faint)",
               }}
             >
-              Loading loadout switchboard...
+              Loading singlet switchboard...
             </div>
           ) : (
-            <loadout-switchboard
+            <singlet-switchboard
               ref={switchboardRef}
               mode="embedded"
               scope={activeScope}
@@ -665,17 +665,17 @@ export function LoadoutSwitchboardDrawer({
         <footer
           style={{
             padding: "8px 12px",
-            borderTop: "1px solid var(--loadout-border)",
+            borderTop: "1px solid var(--singlet-border)",
             display: "flex",
             alignItems: "center",
             gap: "6px",
-            fontFamily: "var(--loadout-font-mono)",
+            fontFamily: "var(--singlet-font-mono)",
             fontSize: "11px",
-            color: "var(--loadout-faint)",
-            backgroundColor: "var(--loadout-surface)",
+            color: "var(--singlet-faint)",
+            backgroundColor: "var(--singlet-surface)",
           }}
         >
-          <span style={{ color: "var(--loadout-emerald)" }} aria-hidden="true">
+          <span style={{ color: "var(--singlet-emerald)" }} aria-hidden="true">
             ●
           </span>
           <span>synced over host WebSocket</span>
@@ -688,12 +688,12 @@ export function LoadoutSwitchboardDrawer({
                 style={{
                   border: 0,
                   background: "transparent",
-                  color: "var(--loadout-dim)",
+                  color: "var(--singlet-dim)",
                   cursor: "pointer",
                   padding: "2px 6px",
                   borderRadius: "4px",
                   fontSize: "11px",
-                  fontFamily: "var(--loadout-font-sans)",
+                  fontFamily: "var(--singlet-font-sans)",
                 }}
               >
                 Open full switchboard ↗

@@ -25,8 +25,8 @@ test('worktree.hydrate links skills into a worktree and keeps git status clean',
   const worktree = sandbox.path('wt-feat');
   sandbox.write('repo/README.md', '# Demo Repo\n');
   git(['init', '-q', repo]);
-  git(['-C', repo, 'config', 'user.name', 'Loadout Test']);
-  git(['-C', repo, 'config', 'user.email', 'loadout@example.com']);
+  git(['-C', repo, 'config', 'user.name', 'Singlet Test']);
+  git(['-C', repo, 'config', 'user.email', 'singlet@example.com']);
   git(['-C', repo, 'add', 'README.md']);
   git(['-C', repo, 'commit', '-qm', 'Initial commit']);
   // An untracked project-local skill in the main checkout.

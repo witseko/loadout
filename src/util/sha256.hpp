@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace loadout::util {
+namespace singlet::util {
 
 /// Incremental SHA-256 streaming hasher; finalize() resets state for reuse.
 class Sha256 {
@@ -56,4 +56,4 @@ struct TreeDigest {
 /// Returns empty hex_hash if dir does not exist or is not a directory.
 [[nodiscard]] TreeDigest hash_skill_tree(const std::filesystem::path& dir);
 
-} // namespace loadout::util
+} // namespace singlet::util

@@ -13,7 +13,7 @@
 #include <variant>
 #include <vector>
 
-namespace loadout::util {
+namespace singlet::util {
 
 /// Discriminator for values stored inside JsonValue.
 enum class JsonType {
@@ -139,4 +139,4 @@ struct JsonParseResult {
 /// Serializes a JsonValue to compact or pretty-printed RFC 8259 JSON text.
 [[nodiscard]] std::string to_json(const JsonValue& val, bool pretty = false, int indent_spaces = 2);
 
-} // namespace loadout::util
+} // namespace singlet::util

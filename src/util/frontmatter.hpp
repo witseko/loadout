@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace loadout::util {
+namespace singlet::util {
 
 /// Parsed metadata, token estimate, and Antigravity validation diagnostics for a SKILL.md document.
 struct FrontmatterInfo {
@@ -29,4 +29,4 @@ struct FrontmatterInfo {
 /// and a non-empty description while preserving all other frontmatter keys and markdown body.
 [[nodiscard]] std::string fix_skill_frontmatter(std::string_view content, std::string_view folder_slug);
 
-} // namespace loadout::util
+} // namespace singlet::util

@@ -4,11 +4,11 @@
 #include <functional>
 #include <string>
 
-namespace loadout::core {
+namespace singlet::core {
 class Engine;
 }
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
 /// Configuration options for the local HTTP + SSE server.
 struct HttpServerOptions {
@@ -21,8 +21,8 @@ struct HttpServerOptions {
 };
 
 /// Start the zero-dependency POSIX localhost HTTP + SSE server.
-/// Prints "LOADOUT_UI_URL=http://127.0.0.1:<port>\n" immediately once listening.
-[[nodiscard]] int run_http_server(loadout::core::Engine& engine, const HttpServerOptions& opts);
+/// Prints "SINGLET_UI_URL=http://127.0.0.1:<port>\n" immediately once listening.
+[[nodiscard]] int run_http_server(singlet::core::Engine& engine, const HttpServerOptions& opts);
 
 /// Request a running HTTP server loop to shut down cleanly.
 void request_http_server_stop();
@@ -30,4 +30,4 @@ void request_http_server_stop();
 /// Launch the platform default web browser (`open` on macOS, `xdg-open` on Linux).
 void launch_system_browser(const std::string& url);
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

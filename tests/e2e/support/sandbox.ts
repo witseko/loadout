@@ -1,9 +1,9 @@
-/** Isolated temporary home folders and helpers to run bin/loadout inside them. */
+/** Isolated temporary home folders and helpers to run bin/singlet inside them. */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { LOADOUT_BIN } from './paths.js';
+import { SINGLET_BIN } from './paths.js';
 
 const COMMAND_TIMEOUT_MS = 15_000;
 
@@ -16,14 +16,14 @@ export interface CommandResult {
 /**
  * A fresh temporary home folder.
  *
- * Every loadout call gets both `--home <root>` and `LOADOUT_HOME=<root>`, so the
+ * Every singlet call gets both `--home <root>` and `SINGLET_HOME=<root>`, so the
  * suite never reads or writes the real ~/.agents, ~/.claude, or other agent folders.
  */
 export class Sandbox {
   readonly root: string;
 
   constructor() {
-    this.root = fs.mkdtempSync(path.join(os.tmpdir(), 'loadout-e2e-'));
+    this.root = fs.mkdtempSync(path.join(os.tmpdir(), 'singlet-e2e-'));
     if (this.root === os.homedir() || this.root === path.parse(this.root).root) {
       throw new Error(`Refusing to use unsafe sandbox root: ${this.root}`);
     }
@@ -64,12 +64,12 @@ export class Sandbox {
 
   /** Environment for child processes, pinned to this sandbox. */
   env(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-    return { ...process.env, LOADOUT_HOME: this.root, ...extra };
+    return { ...process.env, SINGLET_HOME: this.root, ...extra };
   }
 
-  /** Runs `bin/loadout --home <root> ...args` and returns its output. */
+  /** Runs `bin/singlet --home <root> ...args` and returns its output. */
   run(args: string[], input?: string): CommandResult {
-    const result = spawnSync(LOADOUT_BIN, ['--home', this.root, ...args], {
+    const result = spawnSync(SINGLET_BIN, ['--home', this.root, ...args], {
       env: this.env(),
       input,
       encoding: 'utf8',
@@ -81,21 +81,21 @@ export class Sandbox {
     return { status: result.status, stdout: result.stdout, stderr: result.stderr };
   }
 
-  /** Runs a loadout command and throws with its stderr when it exits non-zero. */
+  /** Runs a singlet command and throws with its stderr when it exits non-zero. */
   runOk(args: string[], input?: string): string {
     const result = this.run(args, input);
     if (result.status !== 0) {
-      throw new Error(`loadout ${args.join(' ')} exited ${result.status}: ${result.stderr}`);
+      throw new Error(`singlet ${args.join(' ')} exited ${result.status}: ${result.stderr}`);
     }
     return result.stdout;
   }
 
-  /** Runs `loadout scan --json` with optional extra args and parses the catalog. */
+  /** Runs `singlet scan --json` with optional extra args and parses the catalog. */
   scanJson(extraArgs: string[] = []): Catalog {
     return JSON.parse(this.runOk(['scan', ...extraArgs, '--json'])) as Catalog;
   }
 
-  /** Sends newline-delimited JSON-RPC requests to `loadout rpc` and returns each parsed response line. */
+  /** Sends newline-delimited JSON-RPC requests to `singlet rpc` and returns each parsed response line. */
   rpc(requests: object[]): RpcResponse[] {
     const stdout = this.runOk(['rpc'], requests.map((request) => JSON.stringify(request)).join('\n') + '\n');
     return parseJsonLines(stdout) as RpcResponse[];

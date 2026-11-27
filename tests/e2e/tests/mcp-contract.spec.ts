@@ -1,11 +1,11 @@
-/** `loadout mcp` server behavior and the t3code plugin RPC contract. */
+/** `singlet mcp` server behavior and the t3code plugin RPC contract. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '../support/fixtures.js';
 import { REPO_ROOT } from '../support/paths.js';
 import { parseJsonLines, type RpcResponse } from '../support/sandbox.js';
 
-const EXPECTED_TOOLS = ['loadout_list_catalog', 'loadout_audit_duplicates', 'loadout_toggle_skill', 'loadout_hydrate_worktree'];
+const EXPECTED_TOOLS = ['singlet_list_catalog', 'singlet_audit_duplicates', 'singlet_toggle_skill', 'singlet_hydrate_worktree'];
 
 const REQUIRED_RPC_METHODS = [
   'catalog.get',
@@ -40,7 +40,7 @@ test('mcp answers initialize, tools/list, and tools/call over newline-delimited 
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'e2e', version: '1.0' } } },
     { jsonrpc: '2.0', method: 'notifications/initialized', params: {} },
     { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
-    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'loadout_list_catalog', arguments: {} } },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'singlet_list_catalog', arguments: {} } },
   ];
   const stdout = sandbox.runOk(['mcp'], requests.map((request) => JSON.stringify(request)).join('\n') + '\n');
   const responses = new Map(
@@ -74,8 +74,8 @@ test('protocol.ts declares exactly the RPC methods rpc.cpp dispatches', () => {
   const protocolSource = fs.readFileSync(path.join(pluginDir, 'src', 'protocol.ts'), 'utf8');
   const rpcSource = fs.readFileSync(path.join(REPO_ROOT, 'src', 'surfaces', 'rpc.cpp'), 'utf8');
 
-  const methodList = /export\s+const\s+LOADOUT_RPC_METHODS\s*=\s*\[([\s\S]*?)\]\s*as\s+const/.exec(protocolSource);
-  expect(methodList, 'LOADOUT_RPC_METHODS not found in protocol.ts').not.toBeNull();
+  const methodList = /export\s+const\s+SINGLET_RPC_METHODS\s*=\s*\[([\s\S]*?)\]\s*as\s+const/.exec(protocolSource);
+  expect(methodList, 'SINGLET_RPC_METHODS not found in protocol.ts').not.toBeNull();
   const protocolMethods = [...(methodList?.[1] ?? '').matchAll(/["']([a-z]+\.[A-Za-z0-9_]+)["']/g)].map((m) => m[1]);
 
   const dispatchScope = /dispatch_rpc_method\s*\([\s\S]*?\n\}/.exec(rpcSource)?.[0] ?? rpcSource;

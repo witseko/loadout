@@ -29,17 +29,17 @@ ALL_SRCS := $(MAIN_SRC) $(UTIL_SRCS) $(CORE_SRCS) $(SURFACE_SRCS)
 
 HEADERS := $(wildcard src/util/*.hpp src/core/*.hpp src/ui/*.hpp src/surfaces/*.hpp)
 
-TARGET := bin/loadout
-DEBUG_TARGET := bin/loadout-debug
+TARGET := bin/singlet
+DEBUG_TARGET := bin/singlet-debug
 TEST_UTIL_BIN := bin/test_util
 TEST_CORE_BIN := bin/test_core
 
-# Desktop launcher for `loadout ui`. It points at LOADOUT_BIN, so a rebuild needs no reinstall.
-LOADOUT_BIN ?= $(abspath $(TARGET))
+# Desktop launcher for `singlet ui`. It points at SINGLET_BIN, so a rebuild needs no reinstall.
+SINGLET_BIN ?= $(abspath $(TARGET))
 ifeq ($(UNAME_S),Darwin)
-  APP_LAUNCHER ?= /Applications/Loadout.app
+  APP_LAUNCHER ?= /Applications/Singlet.app
 else
-  APP_LAUNCHER ?= $(HOME)/.local/share/applications/loadout.desktop
+  APP_LAUNCHER ?= $(HOME)/.local/share/applications/singlet.desktop
 endif
 
 .PHONY: all release debug test-util test-core test install-app uninstall-app clean
@@ -70,7 +70,7 @@ test-core: $(UTIL_SRCS) $(CORE_SRCS) tests/test_core.cpp $(wildcard src/util/*.h
 test: test-util test-core
 
 install-app: $(TARGET)
-	./scripts/app-launcher.sh install "$(LOADOUT_BIN)" "$(APP_LAUNCHER)"
+	./scripts/app-launcher.sh install "$(SINGLET_BIN)" "$(APP_LAUNCHER)"
 
 uninstall-app:
 	./scripts/app-launcher.sh uninstall "$(APP_LAUNCHER)"

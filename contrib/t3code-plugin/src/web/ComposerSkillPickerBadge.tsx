@@ -1,5 +1,5 @@
 /**
- * @loadout/t3code-plugin: Composer `$` Skill Picker Target-Wiring Badge (`apps/web`)
+ * @singlet/t3code-plugin: Composer `$` Skill Picker Target-Wiring Badge (`apps/web`)
  *
  * Renders inline target-compatibility pills next to skills inside T3 Code's
  * `$` autocomplete menu matching Artboard 6 tokens (`#E0DDBD` accent, `#3DDC97`
@@ -15,18 +15,18 @@ import {
   resolveTargetForEnv,
   type CanonicalSkill,
   type CatalogSnapshot,
-  type LoadoutBrowserTransport,
+  type SingletBrowserTransport,
   type TargetInstance,
 } from "../protocol.js";
 import {
-  createWsLoadoutTransport,
+  createWsSingletTransport,
   type T3CodeWsBridge,
-} from "./LoadoutSwitchboardDrawer.js";
+} from "./SingletSwitchboardDrawer.js";
 
 export interface ComposerSkillPickerBadgeProps {
   /** Either a full `CanonicalSkill` object or a skill slug (with optional leading `$`). */
   readonly skill: CanonicalSkill | string;
-  /** Latest `loadout` catalog snapshot (used to resolve `targets` and/or lookup `skill` by slug). */
+  /** Latest `singlet` catalog snapshot (used to resolve `targets` and/or lookup `skill` by slug). */
   readonly catalog?: CatalogSnapshot;
   /** Active thread provider id in T3 Code (e.g. `"claude"`, `"codex"`, `"opencode"`). */
   readonly providerId?: string;
@@ -34,8 +34,8 @@ export interface ComposerSkillPickerBadgeProps {
   readonly providerEnv?: Readonly<Record<string, string | undefined>>;
   /** Optional explicit target id override (skips `resolveTargetForEnv` when provided). */
   readonly targetId?: string;
-  /** Pre-built browser transport; falls back to `wsBridge` or `window.LOADOUT_TRANSPORT`. */
-  readonly transport?: LoadoutBrowserTransport;
+  /** Pre-built browser transport; falls back to `wsBridge` or `window.SINGLET_TRANSPORT`. */
+  readonly transport?: SingletBrowserTransport;
   /** T3 Code WebSocket RPC bridge used if `transport` is not passed directly. */
   readonly wsBridge?: T3CodeWsBridge;
   /** Called right after `"Wire & Insert"` succeeds so the composer can insert `$<slug>`. */
@@ -62,7 +62,7 @@ const BADGE_BASE: React.CSSProperties = {
   padding: "0 6px",
   borderRadius: "4px",
   fontFamily:
-    "var(--loadout-font-mono, var(--font-mono, 'JetBrains Mono', 'SF Mono', ui-monospace, monospace))",
+    "var(--singlet-font-mono, var(--font-mono, 'JetBrains Mono', 'SF Mono', ui-monospace, monospace))",
   fontSize: "10.5px",
   fontWeight: 500,
   lineHeight: 1,
@@ -78,7 +78,7 @@ const BTN_SM_BASE: React.CSSProperties = {
   padding: "0 8px",
   borderRadius: "6px",
   fontFamily:
-    "var(--loadout-font-sans, var(--font-sans, Inter, system-ui, sans-serif))",
+    "var(--singlet-font-sans, var(--font-sans, Inter, system-ui, sans-serif))",
   fontSize: "11.5px",
   whiteSpace: "nowrap",
 };
@@ -128,10 +128,10 @@ export function ComposerSkillPickerBadge({
   >(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const resolvedTransport = useMemo<LoadoutBrowserTransport | undefined>(() => {
+  const resolvedTransport = useMemo<SingletBrowserTransport | undefined>(() => {
     if (transport) return transport;
-    if (wsBridge) return createWsLoadoutTransport(wsBridge);
-    if (typeof window !== "undefined") return window.LOADOUT_TRANSPORT;
+    if (wsBridge) return createWsSingletTransport(wsBridge);
+    if (typeof window !== "undefined") return window.SINGLET_TRANSPORT;
     return undefined;
   }, [transport, wsBridge]);
 
@@ -235,9 +235,9 @@ export function ComposerSkillPickerBadge({
           title={`Also wired in: ${otherTargetGlyphs.join(", ")}`}
           style={{
             fontFamily:
-              "var(--loadout-font-mono, var(--font-mono, 'JetBrains Mono', ui-monospace, monospace))",
+              "var(--singlet-font-mono, var(--font-mono, 'JetBrains Mono', ui-monospace, monospace))",
             fontSize: "10px",
-            color: "var(--loadout-faint, #5D6676)",
+            color: "var(--singlet-faint, #5D6676)",
           }}
         >
           {otherTargetGlyphs.join(" ")}
@@ -246,11 +246,11 @@ export function ComposerSkillPickerBadge({
 
       {!target ? (
         <span
-          title={`No loadout target matched provider "${providerId ?? "unknown"}" for this environment`}
+          title={`No singlet target matched provider "${providerId ?? "unknown"}" for this environment`}
           style={{
             ...BADGE_BASE,
-            color: "var(--loadout-amber, #F5B544)",
-            backgroundColor: "var(--loadout-amber-dim, rgba(245, 181, 68, 0.14))",
+            color: "var(--singlet-amber, #F5B544)",
+            backgroundColor: "var(--singlet-amber-dim, rgba(245, 181, 68, 0.14))",
           }}
         >
           Unconfigured account
@@ -263,8 +263,8 @@ export function ComposerSkillPickerBadge({
           }
           style={{
             ...BADGE_BASE,
-            color: "var(--loadout-rose, #F2647A)",
-            backgroundColor: "var(--loadout-rose-dim, rgba(242, 100, 122, 0.14))",
+            color: "var(--singlet-rose, #F2647A)",
+            backgroundColor: "var(--singlet-rose-dim, rgba(242, 100, 122, 0.14))",
           }}
         >
           {compact
@@ -277,9 +277,9 @@ export function ComposerSkillPickerBadge({
             title={`Symlink wired in ${target.skillsDir}`}
             style={{
               ...BADGE_BASE,
-              color: "var(--loadout-emerald, #3DDC97)",
+              color: "var(--singlet-emerald, #3DDC97)",
               backgroundColor:
-                "var(--loadout-emerald-dim, rgba(61, 220, 151, 0.14))",
+                "var(--singlet-emerald-dim, rgba(61, 220, 151, 0.14))",
             }}
           >
             {compact ? target.displayName : `Wired in ${target.displayName}`}
@@ -291,9 +291,9 @@ export function ComposerSkillPickerBadge({
               style={{
                 ...BTN_SM_BASE,
                 cursor: "pointer",
-                border: "1px solid var(--loadout-border-2, #2C323D)",
-                backgroundColor: "var(--loadout-surface-2, #171B22)",
-                color: "var(--loadout-text, #E7E9EC)",
+                border: "1px solid var(--singlet-border-2, #2C323D)",
+                backgroundColor: "var(--singlet-surface-2, #171B22)",
+                color: "var(--singlet-text, #E7E9EC)",
               }}
             >
               Insert
@@ -312,11 +312,11 @@ export function ComposerSkillPickerBadge({
               style={{
                 ...BADGE_BASE,
                 color: errorMsg
-                  ? "var(--loadout-rose, #F2647A)"
-                  : "var(--loadout-amber, #F5B544)",
+                  ? "var(--singlet-rose, #F2647A)"
+                  : "var(--singlet-amber, #F5B544)",
                 backgroundColor: errorMsg
-                  ? "var(--loadout-rose-dim, rgba(242, 100, 122, 0.14))"
-                  : "var(--loadout-amber-dim, rgba(245, 181, 68, 0.14))",
+                  ? "var(--singlet-rose-dim, rgba(242, 100, 122, 0.14))"
+                  : "var(--singlet-amber-dim, rgba(245, 181, 68, 0.14))",
               }}
             >
               {errorMsg ? "Wire failed" : `1-click wire for ${target.displayName}`}
@@ -334,9 +334,9 @@ export function ComposerSkillPickerBadge({
             style={{
               ...BTN_SM_BASE,
               cursor: wiring || !resolvedTransport ? "not-allowed" : "pointer",
-              border: "1px solid var(--loadout-accent, #E0DDBD)",
-              backgroundColor: "var(--loadout-accent, #E0DDBD)",
-              color: "var(--loadout-on-accent, #0B0D10)",
+              border: "1px solid var(--singlet-accent, #E0DDBD)",
+              backgroundColor: "var(--singlet-accent, #E0DDBD)",
+              color: "var(--singlet-on-accent, #0B0D10)",
               fontWeight: 600,
               opacity: wiring || !resolvedTransport ? 0.55 : 1,
             }}

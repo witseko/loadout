@@ -15,15 +15,15 @@
 #include "surfaces/cli.hpp"
 #include "util/json.hpp"
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
 namespace {
 
-using loadout::core::AdapterKind;
-using loadout::core::CatalogSnapshot;
-using loadout::core::Engine;
-using loadout::core::TargetInstance;
-using loadout::util::JsonValue;
+using singlet::core::AdapterKind;
+using singlet::core::CatalogSnapshot;
+using singlet::core::Engine;
+using singlet::core::TargetInstance;
+using singlet::util::JsonValue;
 
 JsonValue make_rpc_result(const JsonValue& id, JsonValue result) {
     JsonValue obj = JsonValue::object();
@@ -51,7 +51,7 @@ std::vector<std::filesystem::path> extract_roots(const JsonValue& params, const 
     if (arr && arr->is_array()) {
         for (const auto& item : arr->as_array()) {
             if (item.is_string() && !item.as_string().empty()) {
-                roots.push_back(loadout::core::expand_home_path(item.as_string(), home_dir));
+                roots.push_back(singlet::core::expand_home_path(item.as_string(), home_dir));
             }
         }
     }
@@ -95,15 +95,15 @@ TargetInstance build_target_from_params(const JsonValue& params, const std::file
     if (adapter_str.empty()) {
         adapter_str = params.get_str("kind", "custom-lenient");
     }
-    auto parsed_adapter = loadout::core::adapter_from_string(adapter_str);
+    auto parsed_adapter = singlet::core::adapter_from_string(adapter_str);
     t.adapter = parsed_adapter.value_or(AdapterKind::CustomLenient);
 
     t.group = params.get_str("group", "");
     if (t.group.empty()) {
-        t.group = std::string(loadout::core::adapter_default_group(t.adapter));
+        t.group = std::string(singlet::core::adapter_default_group(t.adapter));
     }
     std::string raw_dir = params.get_str("skillsDir", "");
-    t.skills_dir = loadout::core::expand_home_path(raw_dir, home_dir);
+    t.skills_dir = singlet::core::expand_home_path(raw_dir, home_dir);
 
     std::string env_hint = params.get_str("envHint", "");
     if (!env_hint.empty()) {
@@ -116,12 +116,12 @@ TargetInstance build_target_from_params(const JsonValue& params, const std::file
 
 JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_view method, const JsonValue& params) {
     if (method == "catalog.get") {
-        return make_rpc_result(id, loadout::core::to_catalog_json(engine.get_catalog()));
+        return make_rpc_result(id, singlet::core::to_catalog_json(engine.get_catalog()));
     }
 
     if (method == "catalog.scan") {
         auto roots = extract_roots(params, engine.home_dir());
-        return make_rpc_result(id, loadout::core::to_catalog_json(engine.scan(roots)));
+        return make_rpc_result(id, singlet::core::to_catalog_json(engine.scan(roots)));
     }
 
     if (method == "skill.toggle") {
@@ -133,12 +133,12 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         }
         bool enabled = params.get_bool("enabled", true);
         auto res = engine.toggle_skill(skill, target_id, enabled);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("skill", skill);
         out.set("targetId", target_id);
         out.set("enabled", enabled);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -147,9 +147,9 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         bool dry_run = params.get_bool("dryRun", true);
         auto promote = extract_string_array(params, "promoteRepoSkills");
         auto res = engine.consolidate(dry_run, promote);
-        JsonValue out = loadout::core::to_consolidate_result_json(res);
+        JsonValue out = singlet::core::to_consolidate_result_json(res);
         if (!dry_run && res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -163,14 +163,14 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
             return make_rpc_error(id, -32602, "skill.resolveDrift requires 'slug' and 'chosenPath'");
         }
         auto res = engine.resolve_drift(slug, chosen, keep_both);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("slug", slug);
         out.set("chosenPath", chosen);
         if (!keep_both.empty()) {
             out.set("keepBothSlug", keep_both);
         }
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -183,11 +183,11 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
             return make_rpc_error(id, -32602, "skill.fixFrontmatter requires 'skill'");
         }
         auto res = engine.fix_frontmatter(skill, apply);
-        JsonValue out = loadout::core::to_frontmatter_fix_json(res);
+        JsonValue out = singlet::core::to_frontmatter_fix_json(res);
         out.set("skill", skill);
         out.set("unifiedDiff", res.diff);
         if (apply && res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -202,7 +202,7 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         if (!detail.found) {
             return make_rpc_error(id, -32004, detail.error.empty() ? "Skill not found" : detail.error);
         }
-        return make_rpc_result(id, loadout::core::to_skill_detail_json(detail));
+        return make_rpc_result(id, singlet::core::to_skill_detail_json(detail));
     }
 
     if (method == "skill.save") {
@@ -222,17 +222,17 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         auto res = rel_path.empty()
                        ? engine.save_skill_markdown(slug, content)
                        : engine.save_skill_file(slug, rel_path, content);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("slug", slug);
         out.set("relPath", rel_path.empty() ? std::string("SKILL.md") : rel_path);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
 
     if (method == "profile.list") {
-        return make_rpc_result(id, loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile()));
+        return make_rpc_result(id, singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile()));
     }
 
     if (method == "profile.save") {
@@ -253,12 +253,12 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         }
         auto skills = extract_string_array(params, "skills");
         auto res = engine.save_profile(name, wiring, skills);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("name", name);
         out.set("activeProfile", engine.active_profile());
-        out.set("profiles", loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
+        out.set("profiles", singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -269,12 +269,12 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
             return make_rpc_error(id, -32602, "profile.apply requires 'name'");
         }
         auto res = engine.apply_profile(name);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("name", name);
         out.set("activeProfile", engine.active_profile());
-        out.set("profiles", loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
+        out.set("profiles", singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -285,12 +285,12 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
             return make_rpc_error(id, -32602, "profile.delete requires 'name'");
         }
         auto res = engine.delete_profile(name);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("name", name);
         out.set("activeProfile", engine.active_profile());
-        out.set("profiles", loadout::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
+        out.set("profiles", singlet::core::to_profiles_json(engine.get_profiles(), engine.active_profile())["profiles"]);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -302,10 +302,10 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         }
         std::string clone_from = params.get_str("cloneFrom", "");
         auto res = engine.add_target(t, clone_from);
-        JsonValue out = loadout::core::to_operation_result_json(res);
-        out.set("target", loadout::core::to_target_json(t));
+        JsonValue out = singlet::core::to_operation_result_json(res);
+        out.set("target", singlet::core::to_target_json(t));
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -316,10 +316,10 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
             return make_rpc_error(id, -32602, "target.remove requires 'id'");
         }
         auto res = engine.remove_target(target_id);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("id", target_id);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -331,20 +331,20 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
             return make_rpc_error(id, -32602, "target.clone requires 'fromId' and 'toId'");
         }
         auto res = engine.clone_target(from_id, to_id);
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         out.set("fromId", from_id);
         out.set("toId", to_id);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
 
     if (method == "quarantine.undo") {
         auto res = engine.undo_last_quarantine();
-        JsonValue out = loadout::core::to_operation_result_json(res);
+        JsonValue out = singlet::core::to_operation_result_json(res);
         if (res.ok) {
-            out.set("catalog", loadout::core::to_catalog_json(engine.get_catalog()));
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
         }
         return make_rpc_result(id, std::move(out));
     }
@@ -354,16 +354,16 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         if (wt.empty()) {
             return make_rpc_error(id, -32602, "worktree.hydrate requires 'worktreePath'");
         }
-        std::filesystem::path wt_path = loadout::core::expand_home_path(wt, engine.home_dir());
+        std::filesystem::path wt_path = singlet::core::expand_home_path(wt, engine.home_dir());
         std::string repo_root_str = params.get_str("repoRoot", "");
         std::filesystem::path repo_root = repo_root_str.empty()
                                               ? std::filesystem::path{}
-                                              : loadout::core::expand_home_path(repo_root_str, engine.home_dir());
+                                              : singlet::core::expand_home_path(repo_root_str, engine.home_dir());
         std::string provider_id = params.get_str("providerId", "");
         auto env_map = extract_env_map(params);
 
         auto res = engine.hydrate_worktree(wt_path, env_map, repo_root, provider_id);
-        JsonValue out = loadout::core::to_worktree_hydrate_json(res);
+        JsonValue out = singlet::core::to_worktree_hydrate_json(res);
         out.set("worktreePath", wt_path.string());
         if (!res.matched_target_id.empty()) {
             out.set("resolvedTargetId", res.matched_target_id);
@@ -422,7 +422,7 @@ JsonValue make_mcp_tools_list() {
         roots_prop.set("items", JsonValue::object({{"type", "string"}}));
         props.set("roots", std::move(roots_prop));
         tools.push_back(make_mcp_tool(
-            "loadout_list_catalog",
+            "singlet_list_catalog",
             "List all discovered agent skills, targets (including multi-account siblings), token estimates, and symlink wiring status.",
             std::move(props)));
     }
@@ -433,7 +433,7 @@ JsonValue make_mcp_tools_list() {
         roots_prop.set("items", JsonValue::object({{"type", "string"}}));
         props.set("roots", std::move(roots_prop));
         tools.push_back(make_mcp_tool(
-            "loadout_audit_duplicates",
+            "singlet_audit_duplicates",
             "Audit exact skill duplicates, drifted copies with diffs, broken symlinks, and Antigravity frontmatter issues.",
             std::move(props)));
     }
@@ -444,7 +444,7 @@ JsonValue make_mcp_tools_list() {
         props.set("targetId", make_prop("string", "Target instance ID (e.g. claude-main, claude-second, codex)"));
         props.set("enabled", make_prop("boolean", "true to wire symlink, false to unlink"));
         tools.push_back(make_mcp_tool(
-            "loadout_toggle_skill",
+            "singlet_toggle_skill",
             "Enable or disable a skill symlink in a specific target instance.",
             std::move(props),
             {"skill", "targetId", "enabled"}));
@@ -459,7 +459,7 @@ JsonValue make_mcp_tools_list() {
         props.set("envHint", make_prop("string", "Optional env var hint (e.g. CLAUDE_CONFIG_DIR=~/.claude-work)"));
         props.set("cloneFrom", make_prop("string", "Optional target ID to clone active skill symlinks from"));
         tools.push_back(make_mcp_tool(
-            "loadout_add_target",
+            "singlet_add_target",
             "Register a custom target or multi-account sibling skills directory.",
             std::move(props),
             {"id", "skillsDir"}));
@@ -472,7 +472,7 @@ JsonValue make_mcp_tools_list() {
         props.set("providerId", make_prop("string", "Optional provider hint (claude, codex, opencode)"));
         props.set("env", make_prop("object", "Optional environment variables (e.g. CLAUDE_CONFIG_DIR, CODEX_HOME)"));
         tools.push_back(make_mcp_tool(
-            "loadout_hydrate_worktree",
+            "singlet_hydrate_worktree",
             "Materialize workspace/project skill symlinks into a Git worktree and exclude them via .git/info/exclude.",
             std::move(props),
             {"worktreePath"}));
@@ -483,7 +483,7 @@ JsonValue make_mcp_tools_list() {
         props.set("skill", make_prop("string", "Skill slug name"));
         props.set("apply", make_prop("boolean", "true to write repaired frontmatter to disk, false to preview only"));
         tools.push_back(make_mcp_tool(
-            "loadout_fix_frontmatter",
+            "singlet_fix_frontmatter",
             "Preview or apply Antigravity-compliant YAML frontmatter repair to a skill's SKILL.md.",
             std::move(props),
             {"skill"}));
@@ -497,7 +497,7 @@ JsonValue make_mcp_tools_list() {
 JsonValue make_mcp_tool_response(const JsonValue& payload, bool is_error = false) {
     JsonValue content_item = JsonValue::object();
     content_item.set("type", "text");
-    content_item.set("text", loadout::util::to_json(payload, false));
+    content_item.set("text", singlet::util::to_json(payload, false));
 
     JsonValue content = JsonValue::array();
     content.push_back(std::move(content_item));
@@ -513,16 +513,16 @@ JsonValue handle_mcp_tool_call(Engine& engine, const JsonValue& id, const JsonVa
     const JsonValue* args_ptr = params.find("arguments");
     JsonValue args = (args_ptr && args_ptr->is_object()) ? *args_ptr : JsonValue::object();
 
-    if (tool_name == "loadout_list_catalog") {
+    if (tool_name == "singlet_list_catalog") {
         auto roots = extract_roots(args, engine.home_dir());
         CatalogSnapshot snap = roots.empty() ? engine.get_catalog() : engine.scan(roots);
-        return make_rpc_result(id, make_mcp_tool_response(loadout::core::to_catalog_json(snap), false));
+        return make_rpc_result(id, make_mcp_tool_response(singlet::core::to_catalog_json(snap), false));
     }
 
-    if (tool_name == "loadout_audit_duplicates") {
+    if (tool_name == "singlet_audit_duplicates") {
         auto roots = extract_roots(args, engine.home_dir());
         CatalogSnapshot snap = roots.empty() ? engine.scan() : engine.scan(roots);
-        JsonValue full = loadout::core::to_catalog_json(snap);
+        JsonValue full = singlet::core::to_catalog_json(snap);
         JsonValue audit = JsonValue::object();
         audit.set("stats", full["stats"]);
         audit.set("duplicateGroups", full["duplicateGroups"]);
@@ -548,7 +548,7 @@ JsonValue handle_mcp_tool_call(Engine& engine, const JsonValue& id, const JsonVa
         return make_rpc_result(id, make_mcp_tool_response(audit, false));
     }
 
-    if (tool_name == "loadout_toggle_skill") {
+    if (tool_name == "singlet_toggle_skill") {
         std::string skill = args.get_str("skill", "");
         if (skill.empty()) skill = args.get_str("slug", "");
         std::string target_id = args.get_str("targetId", "");
@@ -559,10 +559,10 @@ JsonValue handle_mcp_tool_call(Engine& engine, const JsonValue& id, const JsonVa
                 make_mcp_tool_response(JsonValue::object({{"ok", false}, {"error", "Missing 'skill' or 'targetId'"}}), true));
         }
         auto res = engine.toggle_skill(skill, target_id, enabled);
-        return make_rpc_result(id, make_mcp_tool_response(loadout::core::to_operation_result_json(res), !res.ok));
+        return make_rpc_result(id, make_mcp_tool_response(singlet::core::to_operation_result_json(res), !res.ok));
     }
 
-    if (tool_name == "loadout_add_target") {
+    if (tool_name == "singlet_add_target") {
         TargetInstance t = build_target_from_params(args, engine.home_dir());
         if (t.id.empty() || t.skills_dir.empty()) {
             return make_rpc_result(
@@ -571,30 +571,30 @@ JsonValue handle_mcp_tool_call(Engine& engine, const JsonValue& id, const JsonVa
         }
         std::string clone_from = args.get_str("cloneFrom", "");
         auto res = engine.add_target(t, clone_from);
-        JsonValue out = loadout::core::to_operation_result_json(res);
-        out.set("target", loadout::core::to_target_json(t));
+        JsonValue out = singlet::core::to_operation_result_json(res);
+        out.set("target", singlet::core::to_target_json(t));
         return make_rpc_result(id, make_mcp_tool_response(out, !res.ok));
     }
 
-    if (tool_name == "loadout_hydrate_worktree") {
+    if (tool_name == "singlet_hydrate_worktree") {
         std::string wt = args.get_str("worktreePath", "");
         if (wt.empty()) {
             return make_rpc_result(
                 id,
                 make_mcp_tool_response(JsonValue::object({{"ok", false}, {"error", "Missing 'worktreePath'"}}), true));
         }
-        std::filesystem::path wt_path = loadout::core::expand_home_path(wt, engine.home_dir());
+        std::filesystem::path wt_path = singlet::core::expand_home_path(wt, engine.home_dir());
         std::string repo_str = args.get_str("repoRoot", "");
         std::filesystem::path repo_root = repo_str.empty()
                                               ? std::filesystem::path{}
-                                              : loadout::core::expand_home_path(repo_str, engine.home_dir());
+                                              : singlet::core::expand_home_path(repo_str, engine.home_dir());
         std::string provider_id = args.get_str("providerId", "");
         auto env_map = extract_env_map(args);
         auto res = engine.hydrate_worktree(wt_path, env_map, repo_root, provider_id);
-        return make_rpc_result(id, make_mcp_tool_response(loadout::core::to_worktree_hydrate_json(res), !res.ok));
+        return make_rpc_result(id, make_mcp_tool_response(singlet::core::to_worktree_hydrate_json(res), !res.ok));
     }
 
-    if (tool_name == "loadout_fix_frontmatter") {
+    if (tool_name == "singlet_fix_frontmatter") {
         std::string skill = args.get_str("skill", "");
         if (skill.empty()) skill = args.get_str("slug", "");
         bool apply = args.get_bool("apply", false);
@@ -604,7 +604,7 @@ JsonValue handle_mcp_tool_call(Engine& engine, const JsonValue& id, const JsonVa
                 make_mcp_tool_response(JsonValue::object({{"ok", false}, {"error", "Missing 'skill'"}}), true));
         }
         auto res = engine.fix_frontmatter(skill, apply);
-        return make_rpc_result(id, make_mcp_tool_response(loadout::core::to_frontmatter_fix_json(res), !res.ok));
+        return make_rpc_result(id, make_mcp_tool_response(singlet::core::to_frontmatter_fix_json(res), !res.ok));
     }
 
     return make_rpc_error(id, -32602, "Unknown MCP tool: " + tool_name);
@@ -694,7 +694,7 @@ bool read_mcp_frame(std::istream& in, std::string& out_body, bool& out_was_frame
 }
 
 void write_mcp_frame(std::ostream& out, const JsonValue& msg, bool framed) {
-    std::string body = loadout::util::to_json(msg, false);
+    std::string body = singlet::util::to_json(msg, false);
     if (framed) {
         out << "Content-Length: " << body.size() << "\r\n\r\n" << body << std::flush;
     } else {
@@ -715,17 +715,17 @@ int run_rpc_server(Engine& engine) {
             continue;
         }
 
-        auto parsed = loadout::util::parse_json_ex(trimmed);
+        auto parsed = singlet::util::parse_json_ex(trimmed);
         if (!parsed) {
             JsonValue err = make_rpc_error(JsonValue::make_null(), -32700, "Parse error: " + parsed.error);
-            std::cout << loadout::util::to_json(err, false) << '\n' << std::flush;
+            std::cout << singlet::util::to_json(err, false) << '\n' << std::flush;
             continue;
         }
 
         const JsonValue& req = *parsed.value;
         if (!req.is_object()) {
             JsonValue err = make_rpc_error(JsonValue::make_null(), -32600, "Invalid Request: expected object");
-            std::cout << loadout::util::to_json(err, false) << '\n' << std::flush;
+            std::cout << singlet::util::to_json(err, false) << '\n' << std::flush;
             continue;
         }
 
@@ -737,7 +737,7 @@ int run_rpc_server(Engine& engine) {
         if (method.empty()) {
             if (!is_notification) {
                 JsonValue err = make_rpc_error(id, -32600, "Invalid Request: missing method");
-                std::cout << loadout::util::to_json(err, false) << '\n' << std::flush;
+                std::cout << singlet::util::to_json(err, false) << '\n' << std::flush;
             }
             continue;
         }
@@ -747,7 +747,7 @@ int run_rpc_server(Engine& engine) {
 
         JsonValue resp = dispatch_rpc_method(engine, id, method, params);
         if (!is_notification) {
-            std::cout << loadout::util::to_json(resp, false) << '\n' << std::flush;
+            std::cout << singlet::util::to_json(resp, false) << '\n' << std::flush;
         }
     }
     return 0;
@@ -757,7 +757,7 @@ int run_mcp_server(Engine& engine) {
     std::string body;
     bool framed = false;
     while (read_mcp_frame(std::cin, body, framed)) {
-        auto parsed = loadout::util::parse_json_ex(body);
+        auto parsed = singlet::util::parse_json_ex(body);
         if (!parsed) {
             JsonValue err = make_rpc_error(JsonValue::make_null(), -32700, "Parse error: " + parsed.error);
             write_mcp_frame(std::cout, err, framed);
@@ -788,8 +788,8 @@ int run_mcp_server(Engine& engine) {
             caps.set("resources", JsonValue::object({{"subscribe", false}, {"listChanged", false}}));
 
             JsonValue server_info = JsonValue::object();
-            server_info.set("name", "loadout");
-            server_info.set("version", LOADOUT_VERSION);
+            server_info.set("name", "singlet");
+            server_info.set("version", SINGLET_VERSION);
 
             JsonValue res = JsonValue::object();
             res.set("protocolVersion", std::move(proto));
@@ -891,4 +891,4 @@ int run_mcp_server(Engine& engine) {
     return 0;
 }
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

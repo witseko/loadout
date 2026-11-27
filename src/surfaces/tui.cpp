@@ -22,7 +22,7 @@
 #include "core/engine.hpp"
 #include "surfaces/cli.hpp"
 
-namespace loadout::surfaces {
+namespace singlet::surfaces {
 
 namespace {
 
@@ -163,8 +163,8 @@ struct TermSize {
     return std::to_string(tokens);
 }
 
-[[nodiscard]] std::string target_glyph(const loadout::core::TargetInstance& t) {
-    using loadout::core::AdapterKind;
+[[nodiscard]] std::string target_glyph(const singlet::core::TargetInstance& t) {
+    using singlet::core::AdapterKind;
     switch (t.adapter) {
         case AdapterKind::Antigravity: return "AG";
         case AdapterKind::Codex: return "CX";
@@ -223,8 +223,8 @@ enum class CellState {
 };
 
 [[nodiscard]] CellState resolve_cell_state(
-    const loadout::core::CanonicalSkill& skill,
-    const loadout::core::TargetInstance& target) noexcept {
+    const singlet::core::CanonicalSkill& skill,
+    const singlet::core::TargetInstance& target) noexcept {
     auto it = skill.target_states.find(target.id);
     if (it == skill.target_states.end()) {
         return CellState::Off;
@@ -233,14 +233,14 @@ enum class CellState {
     if (!st.has_entry && !st.enabled) {
         return CellState::Off;
     }
-    using loadout::core::EntryKind;
+    using singlet::core::EntryKind;
     if (st.entry_kind == EntryKind::DanglingSymlink) return CellState::Broken;
     if (st.entry_kind == EntryKind::PluginShadow) return CellState::Shadow;
     if (st.entry_kind == EntryKind::PhysicalCopy) {
         return skill.has_drift ? CellState::Drift : CellState::Copy;
     }
     if (st.enabled) {
-        if (st.incompatible || (!skill.antigravity_valid && loadout::core::adapter_requires_strict_frontmatter(target.adapter))) {
+        if (st.incompatible || (!skill.antigravity_valid && singlet::core::adapter_requires_strict_frontmatter(target.adapter))) {
             return CellState::Frontmatter;
         }
         return CellState::On;
@@ -287,17 +287,17 @@ enum class CellState {
     return "unknown";
 }
 
-[[nodiscard]] bool skill_has_broken(const loadout::core::CanonicalSkill& s) noexcept {
+[[nodiscard]] bool skill_has_broken(const singlet::core::CanonicalSkill& s) noexcept {
     for (const auto& [tid, st] : s.target_states) {
         (void)tid;
-        if (st.has_entry && st.entry_kind == loadout::core::EntryKind::DanglingSymlink) {
+        if (st.has_entry && st.entry_kind == singlet::core::EntryKind::DanglingSymlink) {
             return true;
         }
     }
     return false;
 }
 
-[[nodiscard]] bool skill_needs_attention(const loadout::core::CanonicalSkill& s) noexcept {
+[[nodiscard]] bool skill_needs_attention(const singlet::core::CanonicalSkill& s) noexcept {
     return !s.antigravity_valid || s.has_drift || s.has_duplicates || s.has_physical_copy || skill_has_broken(s);
 }
 
@@ -372,9 +372,9 @@ struct KeyEvent {
 
 } // namespace
 
-int run_tui(loadout::core::Engine& engine) {
+int run_tui(singlet::core::Engine& engine) {
     if (!::isatty(STDIN_FILENO) || !::isatty(STDOUT_FILENO)) {
-        std::cerr << "loadout tui requires an interactive TTY.\n";
+        std::cerr << "singlet tui requires an interactive TTY.\n";
         return 1;
     }
 
@@ -391,11 +391,11 @@ int run_tui(loadout::core::Engine& engine) {
 
     TerminalGuard guard;
     if (!guard.enter()) {
-        std::cerr << "loadout tui: failed to initialize raw terminal mode.\n";
+        std::cerr << "singlet tui: failed to initialize raw terminal mode.\n";
         return 1;
     }
 
-    loadout::core::CatalogSnapshot snap = engine.scan();
+    singlet::core::CatalogSnapshot snap = engine.scan();
 
     size_t cursor_row = 0;
     size_t cursor_col = 0;
@@ -495,8 +495,8 @@ int run_tui(loadout::core::Engine& engine) {
         // Row 1: Inverted title bar
         {
             std::ostringstream left_ss;
-            left_ss << " loadout tui \xc2\xb7 "
-                    << loadout::core::contract_home_path(snap.canonical_root, engine.home_dir())
+            left_ss << " singlet tui \xc2\xb7 "
+                    << singlet::core::contract_home_path(snap.canonical_root, engine.home_dir())
                     << " \xc2\xb7 " << snap.skills.size() << " skills \xc2\xb7 "
                     << snap.targets.size() << " targets \xc2\xb7 profile " << active_profile;
             std::ostringstream right_ss;
@@ -653,8 +653,8 @@ int run_tui(loadout::core::Engine& engine) {
             buf << kBold << pad_ascii(d1, W) << kReset << "\r\n";
 
             // Line 3: symlink/path arrow
-            std::string target_path = loadout::core::contract_home_path(ct.skills_dir / cs.slug, engine.home_dir());
-            std::string canon_path = loadout::core::contract_home_path(snap.canonical_root / cs.slug, engine.home_dir());
+            std::string target_path = singlet::core::contract_home_path(ct.skills_dir / cs.slug, engine.home_dir());
+            std::string canon_path = singlet::core::contract_home_path(snap.canonical_root / cs.slug, engine.home_dir());
             std::string d2;
             if (st == CellState::Broken) {
                 d2 = " " + target_path + " -> (dangling symlink)";
@@ -679,7 +679,7 @@ int run_tui(loadout::core::Engine& engine) {
                 d3 = " ! frontmatter: missing/invalid name or description, strict targets drop it  (f fix)";
                 d3_col = kAm;
             } else if (st == CellState::Drift) {
-                d3 = " ~ drifted copy: press c to consolidate or open loadout ui for diff resolver";
+                d3 = " ~ drifted copy: press c to consolidate or open singlet ui for diff resolver";
                 d3_col = kAm;
             } else if (st == CellState::Copy) {
                 d3 = " * unmanaged physical copy: press c to consolidate into canonical store";
@@ -866,4 +866,4 @@ int run_tui(loadout::core::Engine& engine) {
     return 0;
 }
 
-} // namespace loadout::surfaces
+} // namespace singlet::surfaces

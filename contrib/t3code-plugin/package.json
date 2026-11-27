@@ -1,6 +1,7 @@
 {
   "name": "@loadout/t3code-plugin",
   "version": "0.1.0",
+  "private": true,
   "description": "T3 Code (pingdotgg/t3code) Effect-TS server plugin and React 19 UI integration for loadout: the zero-dependency AI agent skill switchboard.",
   "license": "MIT",
   "type": "module",

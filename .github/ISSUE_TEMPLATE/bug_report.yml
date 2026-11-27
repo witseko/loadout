@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in loadout does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a security problem, do not open an issue. See SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: loadout version
+      description: Output of `loadout --version`.
+      placeholder: loadout 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does it happen?
+      options:
+        - CLI
+        - Browser or desktop UI (loadout ui)
+        - Terminal UI (loadout tui)
+        - MCP server
+        - JSON-RPC server
+        - T3 Code plugin
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If you can, reproduce it with `--home <tmp-dir>` and include the commands.
+      placeholder: |
+        1. loadout --home /tmp/sandbox scan
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Paste the output. Remove private paths or skill content if needed.
+      render: text
+    validations:
+      required: true

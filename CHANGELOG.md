@@ -24,5 +24,5 @@ First public release.
 - `contrib/t3code-plugin`: source-only T3 Code integration (Effect-TS service, React drawer, composer badge).
 - `--home` and `LOADOUT_HOME` to run against a sandbox home folder.
 
-[Unreleased]: https://github.com/OWNER/loadout/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/OWNER/loadout/releases/tag/v0.1.0
+[Unreleased]: https://github.com/witseko/loadout/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/witseko/loadout/releases/tag/v0.1.0

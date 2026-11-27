@@ -1,5 +1,8 @@
 # loadout
 
+[![CI](https://github.com/witseko/loadout/actions/workflows/ci.yml/badge.svg)](https://github.com/witseko/loadout/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Pick the skills each coding agent loads. One copy of every skill, symlinked into every agent and account that needs it.
 
 `loadout` finds the `SKILL.md` folders that coding agents keep in many places (`~/.claude`, `~/.claude-work`, `~/.codex`, `~/.gemini`, `~/.config/opencode`, project repos, and more). It moves duplicates into one canonical store at `~/.agents/skills`, and it lets you turn each skill ON or OFF per agent and per account. You can do this from a browser UI, a terminal UI, the CLI, an MCP server, or a T3 Code plugin.
@@ -19,7 +22,7 @@ Each agent reads skills from its own folder. When you use several agents, or sev
 You need a C++20 compiler (`clang++` or `g++`), `make`, and a POSIX system.
 
 ```bash
-git clone <repo-url> loadout
+git clone https://github.com/witseko/loadout.git
 ```
 
 ```bash
@@ -160,10 +163,11 @@ For git worktrees, `loadout` adds its symlinks to `.git/info/exclude`, so `git s
 
 - The UI server binds to `127.0.0.1` only. It has no authentication, so do not expose the port to other machines.
 - `loadout` makes no network calls.
+- To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and code layout, and [docs/architecture.md](docs/architecture.md) for how the parts fit together. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and code layout, and [docs/architecture.md](docs/architecture.md) for how the parts fit together. Changes are listed in [CHANGELOG.md](CHANGELOG.md). Everyone who takes part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

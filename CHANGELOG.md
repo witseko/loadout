@@ -1,0 +1,28 @@
+# Changelog
+
+All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-11-27
+
+First public release.
+
+### Added
+
+- `loadout scan`: discover skills and targets for Claude Code, Codex, Gemini / Antigravity, Cursor, ZCode, OpenCode, Windsurf, extra accounts (`~/.claude-*`, `~/.codex-*`, ...), and repo-local skills.
+- Exact duplicate and drifted copy detection with SHA-256 tree hashes and unified diffs.
+- `loadout dedup` and `loadout undo`: preview, then consolidate with `--apply` into `~/.agents/skills` with quarantine backup and byte-exact restore.
+- `loadout toggle` and `loadout target add | clone | remove | list`: per-target and per-account symlink wiring, custom targets.
+- `loadout doctor [--fix]`: broken link audit and non-destructive frontmatter repair.
+- Profiles: save and apply named wiring sets.
+- Git worktree hydration with `.git/info/exclude`, so `git status` stays clean.
+- `loadout ui`: browser patchbay UI on `127.0.0.1` with live updates over SSE, skill inspector, and diff resolver.
+- `loadout tui`: keyboard-driven terminal patchbay.
+- `loadout rpc`: JSON-RPC 2.0 server on stdin/stdout.
+- `loadout mcp`: MCP server with six tools and `skill://` resources.
+- `contrib/t3code-plugin`: source-only T3 Code integration (Effect-TS service, React drawer, composer badge).
+- `--home` and `LOADOUT_HOME` to run against a sandbox home folder.
+
+[Unreleased]: https://github.com/OWNER/loadout/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/OWNER/loadout/releases/tag/v0.1.0

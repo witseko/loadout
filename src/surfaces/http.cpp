@@ -177,9 +177,6 @@ std::string serialize_http_response(const HttpResponse& res) {
         << "Content-Type: " << res.content_type << "\r\n"
         << "Content-Length: " << res.body.size() << "\r\n"
         << "Cache-Control: no-cache\r\n"
-        << "Access-Control-Allow-Origin: *\r\n"
-        << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-        << "Access-Control-Allow-Headers: Content-Type\r\n"
         << "Connection: close\r\n\r\n"
         << res.body;
     return oss.str();
@@ -199,6 +196,32 @@ HttpResponse error_response(int status, const char* status_text, std::string mes
     obj.set("ok", false);
     obj.set("error", std::move(message));
     return json_response(obj, status, status_text);
+}
+
+/// Returns a 403 response when a request did not come from the loadout UI's own origin.
+///
+/// Blocks other web pages (cross-site requests) and DNS rebinding from driving the API.
+/// Requiring a JSON Content-Type on POST forces a CORS preflight, which browsers fail
+/// because the server sends no Access-Control-Allow-Origin header.
+std::optional<HttpResponse> reject_untrusted_request(const HttpRequest& req, uint16_t port) {
+    const std::string port_suffix = ":" + std::to_string(port);
+    auto host = req.headers.find("host");
+    if (host == req.headers.end() ||
+        (host->second != "127.0.0.1" + port_suffix && host->second != "localhost" + port_suffix)) {
+        return error_response(403, "Forbidden", "Forbidden host");
+    }
+    auto origin = req.headers.find("origin");
+    if (origin != req.headers.end() && origin->second != "http://" + host->second) {
+        return error_response(403, "Forbidden", "Forbidden origin");
+    }
+    if (req.method == "POST") {
+        auto content_type = req.headers.find("content-type");
+        if (content_type == req.headers.end() ||
+            !to_lower_ascii(content_type->second).starts_with("application/json")) {
+            return error_response(403, "Forbidden", "POST requires Content-Type: application/json");
+        }
+    }
+    return std::nullopt;
 }
 
 struct ClientConn {
@@ -307,10 +330,6 @@ HttpResponse handle_api_request(
     const HttpRequest& req,
     bool& out_mutated) {
     out_mutated = false;
-
-    if (req.method == "OPTIONS") {
-        return HttpResponse{204, "No Content", "text/plain", ""};
-    }
 
     // Embedded UI static assets
     if (req.method == "GET" && (req.path == "/" || req.path == "/index.html")) {
@@ -847,13 +866,13 @@ int run_http_server(Engine& engine, const HttpServerOptions& opts) {
                 }
 
                 if (ready) {
-                    if (req.method == "GET" && req.path == "/api/events") {
+                    std::optional<HttpResponse> rejection = reject_untrusted_request(req, actual_port);
+                    if (!rejection && req.method == "GET" && req.path == "/api/events") {
                         static constexpr std::string_view kSseInit =
                             "HTTP/1.1 200 OK\r\n"
                             "Content-Type: text/event-stream\r\n"
                             "Cache-Control: no-cache\r\n"
-                            "Connection: keep-alive\r\n"
-                            "Access-Control-Allow-Origin: *\r\n\r\n"
+                            "Connection: keep-alive\r\n\r\n"
                             ": connected\n\n";
                         if (send_all_nb(conn.fd, kSseInit.data(), kSseInit.size(), 2000)) {
                             sse_fds.push_back(conn.fd);
@@ -864,7 +883,7 @@ int run_http_server(Engine& engine, const HttpServerOptions& opts) {
                         to_remove_clients.push_back(i);
                     } else {
                         bool mutated = false;
-                        HttpResponse resp = handle_api_request(engine, req, mutated);
+                        HttpResponse resp = rejection ? *rejection : handle_api_request(engine, req, mutated);
                         std::string raw = serialize_http_response(resp);
                         (void)send_all_nb(conn.fd, raw.data(), raw.size(), 5000);
                         ::close(conn.fd);

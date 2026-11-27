@@ -1361,6 +1361,9 @@ OperationResult Engine::resolve_drift(
     if (slug.empty() || chosen_path_raw.empty()) {
         return {false, "slug and chosen_path are required", ""};
     }
+    if (!keep_both_slug.empty() && !is_valid_slug(keep_both_slug)) {
+        return {false, "Invalid keep-both slug: " + keep_both_slug, ""};
+    }
 
     CatalogSnapshot snap = scan();
     fs::path chosen_expanded = expand_home_path(chosen_path_raw, home_dir_);

@@ -395,6 +395,15 @@ void test_consolidate_quarantine_undo_and_drift() {
     CHECK(loadout::util::hash_skill_tree(home / ".zcode/skills/alpha-skill").hex_hash == hash_zcode_before);
     CHECK(!engine.get_catalog().can_undo);
 
+    // Resolve drift rejects a keep-both slug that would escape the canonical store
+    for (const std::string bad_slug : {"../../.ssh", "/tmp/escape", "..", "nested/slug"}) {
+        auto bad_res = engine.resolve_drift(
+            "beta-drift", (home / ".zcode/skills/beta-drift").string(), bad_slug);
+        CHECK(!bad_res.ok);
+        CHECK(is_real_dir_path(home / ".zcode/skills/beta-drift"));
+    }
+    CHECK(!fs::exists(home / ".ssh"));
+
     // Resolve drift (keep both -> rename ZCode copy to beta-drift-zcode, then undo)
     auto kb_res = engine.resolve_drift(
         "beta-drift", (home / ".zcode/skills/beta-drift").string(), "beta-drift-zcode");

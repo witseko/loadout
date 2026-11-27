@@ -91,3 +91,30 @@ test('rejects path traversal when saving skill files', async ({ sandbox, startUi
   expect(rejected).toBe(true);
   expect(pathExists(sandbox.path('.agents/skills/escape.txt'))).toBe(false);
 });
+
+test('rejects cross-site and DNS-rebinding requests', async ({ sandbox, startUi, request }) => {
+  seedWebSkill(sandbox);
+  const { url } = await startUi();
+  const plantedPath = sandbox.path('.agents/skills/web-skill/planted.txt');
+  const plant = { slug: 'web-skill', relPath: 'planted.txt', content: 'nope' };
+
+  const foreignOrigin = await request.post(`${url}/api/skill`, {
+    data: plant,
+    headers: { Origin: 'https://evil.example' },
+  });
+  expect(foreignOrigin.status()).toBe(403);
+
+  const plainText = await request.post(`${url}/api/skill`, {
+    data: JSON.stringify(plant),
+    headers: { 'Content-Type': 'text/plain' },
+  });
+  expect(plainText.status()).toBe(403);
+
+  const reboundHost = await request.get(`${url}/api/catalog`, { headers: { Host: 'evil.example' } });
+  expect(reboundHost.status()).toBe(403);
+
+  const catalog = await request.get(`${url}/api/catalog`);
+  expect(catalog.status()).toBe(200);
+  expect(catalog.headers()['access-control-allow-origin']).toBeUndefined();
+  expect(pathExists(plantedPath)).toBe(false);
+});

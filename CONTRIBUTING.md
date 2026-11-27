@@ -51,3 +51,16 @@ See [docs/architecture.md](docs/architecture.md). In short: `src/util` has pure 
 - Commit messages: short, imperative, one line, for example `fix drift detection for symlinked skills`.
 - Keep a pull request to one topic.
 - Add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md) for user-visible changes.
+
+## Release
+
+1. Set `LOADOUT_VERSION` in `src/surfaces/cli.hpp` to the new version, for example `0.2.0`.
+2. In [CHANGELOG.md](CHANGELOG.md), rename `Unreleased` to `[0.2.0] - <date>`, add a new empty `Unreleased` section, and update the compare links at the bottom.
+3. Merge these changes to `main`.
+4. Tag the merge commit and push the tag:
+
+   ```bash
+   git tag v0.2.0 && git push origin v0.2.0
+   ```
+
+The tag starts `.github/workflows/release.yml`. It fails if the tag does not match `LOADOUT_VERSION` or if CHANGELOG.md has no section for the version. It runs the unit tests and builds binaries for macOS (`arm64`, `x86_64`) and Linux (`x86_64`, `arm64`). Then it publishes a GitHub release with the archives, a `SHA256SUMS` file, and the CHANGELOG section as release notes.

@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { runner: macos-latest, os: macos, arch: arm64 }
+          - { runner: macos-15-intel, os: macos, arch: x86_64 }
+          - { runner: ubuntu-24.04, os: linux, arch: x86_64 }
+          - { runner: ubuntu-24.04-arm, os: linux, arch: arm64 }
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Oldest macOS the binary runs on. The runner's own macOS is newer.
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Check that the tag matches LOADOUT_VERSION
+        run: |
+          source_version=$(sed -n 's/.*LOADOUT_VERSION = "\(.*\)";/\1/p' src/surfaces/cli.hpp)
+          if [[ "v$source_version" != "$TAG" ]]; then
+            echo "Tag $TAG does not match LOADOUT_VERSION $source_version in src/surfaces/cli.hpp" >&2
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: make test
+
+      - name: Build release binary
+        run: make clean release
+
+      - name: Smoke test
+        run: |
+          ./bin/loadout --version
+          [[ "$(./bin/loadout --version)" == "loadout ${TAG#v}" ]]
+
+      - name: Package
+        run: |
+          package="loadout-${TAG}-${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "dist/$package"
+          cp bin/loadout LICENSE README.md "dist/$package/"
+          tar -C dist -czf "dist/$package.tar.gz" "$package"
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: loadout-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write checksums
+        working-directory: dist
+        run: sha256sum loadout-*.tar.gz > SHA256SUMS
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${TAG#v}"
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 { in_section = 1; next }
+            in_section && /^## \[/ { exit }
+            in_section && /^\[.*\]: / { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "CHANGELOG.md has no section for $version" >&2
+            exit 1
+          fi
+
+      - name: Create release
+        run: |
+          gh release create "$TAG" dist/*.tar.gz dist/SHA256SUMS \
+            --verify-tag \
+            --title "loadout $TAG" \
+            --notes-file release-notes.md

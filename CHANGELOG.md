@@ -23,6 +23,7 @@ First public release.
 - `loadout mcp`: MCP server with six tools and `skill://` resources.
 - `contrib/t3code-plugin`: source-only T3 Code integration (Effect-TS service, React drawer, composer badge).
 - `--home` and `LOADOUT_HOME` to run against a sandbox home folder.
+- Prebuilt binaries for macOS (`arm64`, `x86_64`) and Linux (`x86_64`, `arm64`) on each GitHub release, with `SHA256SUMS`.
 
 [Unreleased]: https://github.com/witseko/loadout/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/witseko/loadout/releases/tag/v0.1.0

@@ -19,6 +19,26 @@ Each agent reads skills from its own folder. When you use several agents, or sev
 
 ## Install
 
+### Prebuilt binary
+
+Each [release](https://github.com/witseko/loadout/releases) has binaries for macOS 13 or later (`arm64`, `x86_64`) and Linux with glibc 2.39 or later, for example Ubuntu 24.04 (`x86_64`, `arm64`). Download the archive for your system, check it against `SHA256SUMS`, and copy the binary to a folder on your `PATH`:
+
+```bash
+tar -xzf loadout-v0.1.0-macos-arm64.tar.gz
+```
+
+```bash
+cp loadout-v0.1.0-macos-arm64/loadout /usr/local/bin/
+```
+
+The macOS binaries are not signed. If macOS blocks a binary that you downloaded in a browser, remove the quarantine flag:
+
+```bash
+xattr -d com.apple.quarantine /usr/local/bin/loadout
+```
+
+### Build from source
+
 You need a C++20 compiler (`clang++` or `g++`), `make`, and a POSIX system.
 
 ```bash

@@ -380,13 +380,31 @@ loadout-switchboard .pill[aria-pressed="true"] b { color: var(--bg); opacity: .7
 loadout-switchboard .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
 loadout-switchboard .spacer { flex: 1; }
 
+/* appearance: none stops WebKitGTK from drawing a light native GTK widget on Linux. */
 loadout-switchboard .select {
+  appearance: none;
+  -webkit-appearance: none;
   height: 28px;
+  max-width: 200px;
   border-radius: 6px;
   border: 1px solid var(--border-2);
-  background: var(--surface-2);
-  padding: 0 8px;
+  color: var(--text);
+  background-color: var(--surface-2);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--faint) 50%),
+    linear-gradient(135deg, var(--faint) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 12px, calc(100% - 9px) 12px;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+  padding: 0 24px 0 8px;
   font-size: 12px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+loadout-switchboard .select option {
+  color: var(--text);
+  background-color: var(--surface-2);
 }
 
 loadout-switchboard .profile {

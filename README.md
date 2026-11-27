@@ -3,7 +3,7 @@
 [![CI](https://github.com/witseko/loadout/actions/workflows/ci.yml/badge.svg)](https://github.com/witseko/loadout/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Pick the skills each coding agent loads. One copy of every skill, symlinked into every agent and account that needs it.
+Manage coding agent skills from one place. Store each skill once, toggle it per agent or account via symlinks, and eliminate duplicate folders and drift.
 
 ![The loadout switchboard: skills in rows, agents and accounts in columns, with wired, unmanaged, and drifted copies marked](docs/images/switchboard.png)
 

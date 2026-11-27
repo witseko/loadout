@@ -1,0 +1,15 @@
+{
+  "name": "loadout-e2e",
+  "private": true,
+  "description": "Playwright end-to-end tests for the loadout binary and its embedded web UI",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.11",
+    "typescript": "^7.0.2"
+  }
+}

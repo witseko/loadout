@@ -32,6 +32,35 @@ The binary is `bin/loadout`. Copy it to a folder on your `PATH`:
 cp bin/loadout /usr/local/bin/
 ```
 
+### Desktop launcher
+
+Add a launcher to open the UI from Launchpad or Spotlight on macOS, or from the app menu on Linux. The launcher runs `loadout ui`:
+
+```bash
+make install-app
+```
+
+| OS | Launcher |
+| :--- | :--- |
+| macOS | App bundle `/Applications/Loadout.app` |
+| Linux | Desktop entry `~/.local/share/applications/loadout.desktop` |
+
+The command builds `bin/loadout` first. The launcher points at that binary, so a rebuild needs no reinstall. If you move or delete the checkout, the launcher stops working. In that case, point it at a binary that stays in place:
+
+```bash
+make install-app LOADOUT_BIN=/usr/local/bin/loadout
+```
+
+To install the launcher at a different path, pass `APP_LAUNCHER`, for example `APP_LAUNCHER=$HOME/Applications/Loadout.app`.
+
+To remove the launcher:
+
+```bash
+make uninstall-app
+```
+
+On Linux, the native window needs GTK 3 and WebKitGTK 4.1 (on Ubuntu: `libgtk-3-0` and `libwebkit2gtk-4.1-0`). Without them, `loadout ui` opens the UI in your web browser.
+
 ## Quick start
 
 1. See what is on your machine. This command only reads:

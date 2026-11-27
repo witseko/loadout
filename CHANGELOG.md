@@ -4,6 +4,10 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- `make install-app` and `make uninstall-app`: add or remove a desktop launcher for `loadout ui` (an app bundle in `/Applications` on macOS, a desktop entry in `~/.local/share/applications` on Linux).
+
 ## [0.1.0] - 2026-11-27
 
 First public release.

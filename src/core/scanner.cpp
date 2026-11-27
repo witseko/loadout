@@ -591,10 +591,13 @@ ScanResult scan_filesystem(const ScanOptions& options) {
             }
         };
 
-        std::vector<std::jthread> workers;
+        std::vector<std::thread> workers;
         workers.reserve(num_threads);
         for (size_t i = 0; i < num_threads; ++i) {
             workers.emplace_back(worker_fn);
+        }
+        for (auto& w : workers) {
+            if (w.joinable()) w.join();
         }
     }
 

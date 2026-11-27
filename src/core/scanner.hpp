@@ -28,7 +28,7 @@ struct ScanResult {
     double scan_duration_ms = 0.0;
 };
 
-/// Parallel work-stealing scanner using std::jthread and POSIX opendir/readdir d_type pruning.
+/// Parallel work-stealing scanner using std::thread and POSIX opendir/readdir d_type pruning.
 /// Skips linked git worktrees (a `.git` file pointing into `.git/worktrees/`) unless one is a scan root.
 /// Never enters node_modules, .git, target, .venv, build, dist, .next, Pods, or macOS TCC
 /// directories (Library, Pictures, Music, Movies, .Trash, /Volumes).

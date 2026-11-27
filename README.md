@@ -35,7 +35,13 @@ git clone https://github.com/witseko/singlet.git && cd singlet && make release
 
 Then copy `bin/singlet` to a folder on your `PATH`.
 
-To open the UI from Launchpad, Spotlight, or your Linux app menu, run `make install-app` in the checkout. See [Desktop launcher](docs/usage.md#desktop-launcher).
+To install a desktop launcher (Launchpad/Spotlight on macOS, app menu on Linux) from the checkout:
+
+```bash
+make install-app
+```
+
+See [Desktop launcher](docs/usage.md#desktop-launcher) for custom paths and `make uninstall-app`.
 
 ## Quick start
 

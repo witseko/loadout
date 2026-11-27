@@ -4,14 +4,6 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
-### Added
-
-- `make install-app` and `make uninstall-app`: add or remove a desktop launcher for `singlet ui` (an app bundle in `/Applications` on macOS, a desktop entry in `~/.local/share/applications` on Linux).
-
-### Fixed
-
-- Profile picker in the UI: dark themed on Linux (WebKitGTK drew a light native widget) and no longer wraps to a second row.
-
 ## [0.1.0] - 2026-11-27
 
 First public release.
@@ -29,6 +21,7 @@ First public release.
 - `singlet tui`: keyboard-driven terminal patchbay.
 - `singlet rpc`: JSON-RPC 2.0 server on stdin/stdout.
 - `singlet mcp`: MCP server with six tools and `skill://` resources.
+- `make install-app` and `make uninstall-app`: add or remove a desktop launcher for `singlet ui` (an app bundle in `/Applications` on macOS, a desktop entry in `~/.local/share/applications` on Linux).
 - `contrib/t3code-plugin`: source-only T3 Code integration (Effect-TS service, React drawer, composer badge).
 - `--home` and `SINGLET_HOME` to run against a sandbox home folder.
 - Prebuilt binaries for macOS (`arm64`, `x86_64`) and Linux (`x86_64`, `arm64`) on each GitHub release, with `SHA256SUMS`.

@@ -1,0 +1,70 @@
+{
+  "name": "@loadout/t3code-plugin",
+  "version": "0.1.0",
+  "description": "T3 Code (pingdotgg/t3code) Effect-TS server plugin and React 19 UI integration for loadout: the zero-dependency AI agent skill switchboard.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./protocol": {
+      "types": "./src/protocol.ts",
+      "default": "./src/protocol.ts"
+    },
+    "./server": {
+      "types": "./src/server/LoadoutService.ts",
+      "default": "./src/server/LoadoutService.ts"
+    },
+    "./server/rpc": {
+      "types": "./src/server/LoadoutRpcClient.ts",
+      "default": "./src/server/LoadoutRpcClient.ts"
+    },
+    "./web": {
+      "types": "./src/web/LoadoutSwitchboardDrawer.tsx",
+      "default": "./src/web/LoadoutSwitchboardDrawer.tsx"
+    },
+    "./web/composer": {
+      "types": "./src/web/ComposerSkillPickerBadge.tsx",
+      "default": "./src/web/ComposerSkillPickerBadge.tsx"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "effect": "^3.12.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "effect": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "loadout",
+    "t3code",
+    "skills",
+    "effect-ts",
+    "react",
+    "claude-code",
+    "codex",
+    "opencode",
+    "antigravity",
+    "mcp"
+  ]
+}

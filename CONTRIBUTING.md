@@ -9,6 +9,10 @@ You need `clang++` or `g++` with C++20 support, `make`, and macOS or Linux.
 | `make` or `make release` | Optimized, stripped binary at `bin/loadout` |
 | `make debug` | ASan + UBSan binary at `bin/loadout-debug` |
 | `make test` | Build and run the unit tests (`tests/test_util.cpp`, `tests/test_core.cpp`) |
+| `make install-app` | Build, then add a launcher for `loadout ui`: `/Applications/Loadout.app` on macOS, `~/.local/share/applications/loadout.desktop` on Linux |
+| `make uninstall-app` | Remove that launcher |
+
+`scripts/app-launcher.sh` writes and removes the launcher. To test it without touching your real launcher, pass a temporary path, for example `make install-app APP_LAUNCHER=/tmp/Loadout.app`.
 | `make clean` | Remove `bin/` |
 
 The build uses strict warnings with `-Werror`. A warning is a build failure.

@@ -55,3 +55,29 @@ test('theme button switches between dark and light', async ({ sandbox, startUi, 
   await page.getByRole('button', { name: 'Light / Dark' }).click();
   await expect(root).toHaveAttribute('data-theme', 'light');
 });
+
+test('install modal opens, lists no sources, and shows install errors', async ({ sandbox, startUi, page }) => {
+  sandbox.mkdir('.claude/skills');
+  sandbox.writeSkill('.agents/skills', 'web-skill', 'Skill shown next to the install modal');
+  const { url } = await startUi();
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+
+  await page.goto(url);
+  await page.getByRole('button', { name: '+ Install' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Install skills from GitHub' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('No skills installed from GitHub yet.')).toBeVisible();
+
+  await dialog.getByLabel('GitHub URL').fill('https://example.com/acme/skills');
+  await dialog.getByLabel('GitHub URL').press('Enter');
+  await expect(dialog.getByText('Not a GitHub URL', { exact: false })).toBeVisible();
+  expect(pathExists(sandbox.path('.agents/skills/skills'))).toBe(false);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  // A failed POST logs one browser console error for the 400 response; anything else is a bug.
+  expect(consoleErrors.filter((text) => !text.includes('400'))).toEqual([]);
+});

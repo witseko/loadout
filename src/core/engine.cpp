@@ -8,7 +8,9 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -481,6 +483,13 @@ bool Engine::load_lockfile() {
         }
     }
 
+    if (const auto* sources_v = parsed->find("sources"); sources_v && sources_v->is_object()) {
+        skill_sources_.clear();
+        for (const auto& [slug, val] : sources_v->as_object()) {
+            if (auto source = skill_source_from_json(val)) skill_sources_[slug] = std::move(*source);
+        }
+    }
+
     if (const auto* qh = parsed->find("quarantineHistory"); qh && qh->is_array()) {
         quarantine_history_.clear();
         for (const auto& item : qh->as_array()) {
@@ -577,6 +586,12 @@ bool Engine::save_lockfile() const {
         }
     }
     root.set("skills", std::move(skills_obj));
+
+    JsonValue sources_obj = JsonValue::object();
+    for (const auto& [slug, source] : skill_sources_) {
+        sources_obj.set(slug, to_skill_source_json(source));
+    }
+    root.set("sources", std::move(sources_obj));
 
     JsonValue qh = JsonValue::array();
     for (const auto& rec : quarantine_history_) {
@@ -1570,6 +1585,10 @@ OperationResult Engine::undo_last_quarantine() {
                 }
                 ++restored;
             }
+        } else if (action == "replaced_from_source") {
+            auto rres = restore_replaced_skill(e, batch.dir);
+            if (!rres.ok) return rres;
+            if (!rres.message.empty()) ++restored;
         } else if (action == "renamed_keep_both") {
             fs::path new_link(e.get_str("newLinkPath"));
             if (!new_link.empty() && lstat_exists(new_link)) {
@@ -1597,6 +1616,361 @@ OperationResult Engine::undo_last_quarantine() {
     save_lockfile();
 
     return {true, "", "Restored " + std::to_string(restored) + " item(s) from batch " + batch.id};
+}
+
+namespace {
+
+/// Removes a temporary folder when it goes out of scope.
+struct TempDirGuard {
+    fs::path path;
+    explicit TempDirGuard(fs::path temp_path) : path(std::move(temp_path)) {}
+    TempDirGuard(const TempDirGuard&) = delete;
+    TempDirGuard& operator=(const TempDirGuard&) = delete;
+    ~TempDirGuard() {
+        std::error_code ec;
+        if (!path.empty()) fs::remove_all(path, ec);
+    }
+};
+
+/// Returns a not-yet-existing path under parent with the `.singlet-tmp-` prefix the scanner skips.
+fs::path unique_temp_path(const fs::path& parent, std::string_view label) {
+    return parent / (".singlet-tmp-" + std::string(label) + "-" + std::to_string(::getpid()) + "-" +
+                     std::to_string(++g_tmp_seq));
+}
+
+bool is_installable_slug(const std::string& slug) {
+    return is_valid_slug(slug) && slug.front() != '.';
+}
+
+std::string source_key(const SkillSource& source) {
+    return source.repo + "#" + source.ref;
+}
+
+SourceUpdateStatus initial_status(const std::string& slug, const SkillSource& source) {
+    SourceUpdateStatus status;
+    status.slug = slug;
+    status.repo = source.repo;
+    status.ref = source.ref;
+    status.installed_commit = source.commit;
+    return status;
+}
+
+/// Copies src into a temporary folder next to dest, then renames it into place.
+bool place_skill_copy(const fs::path& src, const fs::path& dest, std::string& err) {
+    fs::path stage = unique_temp_path(dest.parent_path(), "install");
+    if (!copy_skill_tree(src, stage, err)) return false;
+    if (::rename(stage.c_str(), dest.c_str()) != 0) {
+        err = "Failed to move skill into the store: " + std::string(std::strerror(errno));
+        std::error_code ec;
+        fs::remove_all(stage, ec);
+        return false;
+    }
+    return true;
+}
+
+/// Lockfile sources come from a file the user can edit, so check them like a URL before using them.
+bool is_valid_recorded_source(const SkillSource& source) {
+    // An empty ref means the default branch; "HEAD" stands in so the path still gets checked.
+    std::string url = "github.com/" + source.repo + "/tree/" + (source.ref.empty() ? "HEAD" : source.ref);
+    if (!source.path.empty()) url += "/" + source.path;
+    std::string error;
+    auto location = parse_github_url(url, error);
+    return location && location->repo == source.repo && location->path == source.path;
+}
+
+}  // namespace
+
+std::string Engine::git_host_url() const {
+    return config_.git_host_url.empty() ? std::string(DEFAULT_GIT_HOST_URL) : config_.git_host_url;
+}
+
+InstallResult Engine::install_from_github(const std::string& url, const std::vector<std::string>& wire_targets) {
+    InstallResult result;
+    std::string error;
+    auto location = parse_github_url(url, error);
+    if (!location) {
+        result.error = error;
+        return result;
+    }
+    result.repo = location->repo;
+
+    std::error_code ec;
+    fs::create_directories(canonical_skills_dir(), ec);
+    if (ec) {
+        result.error = "Failed to create " + canonical_skills_dir().string() + ": " + ec.message();
+        return result;
+    }
+
+    TempDirGuard clone_dir{unique_temp_path(home_dir_ / ".agents", "clone")};
+    FetchResult fetched = clone_repo(git_host_url(), location->repo, location->ref, clone_dir.path);
+    if (!fetched.ok) {
+        result.error = fetched.error;
+        return result;
+    }
+    result.commit = fetched.commit;
+
+    auto repo_paths = find_skill_paths(clone_dir.path, location->path);
+    if (repo_paths.empty()) {
+        result.error = "No folder with a SKILL.md found at " + url;
+        return result;
+    }
+    for (const auto& repo_path : repo_paths) {
+        result.skills.push_back(install_one_skill(*location, fetched.commit, clone_dir.path, repo_path));
+    }
+    result.ok = true;
+
+    cached_snapshot_.reset();
+    scan();
+    save_lockfile();
+    for (auto& item : result.skills) {
+        if (!item.installed) continue;
+        for (const auto& target_id : wire_targets) {
+            auto wired = toggle_skill(item.slug, target_id, true);
+            if (wired.ok) {
+                item.wired_targets.push_back(target_id);
+            } else {
+                item.wire_errors.push_back(target_id + ": " + wired.error);
+            }
+        }
+    }
+    return result;
+}
+
+InstalledSkill Engine::install_one_skill(
+    const GithubLocation& location,
+    const std::string& commit,
+    const fs::path& checkout,
+    const std::string& repo_path) {
+    InstalledSkill item;
+    item.slug = slug_for_skill_path(location.repo, repo_path);
+    item.repo_path = repo_path;
+    if (!is_installable_slug(item.slug)) {
+        item.message = "invalid skill folder name";
+        return item;
+    }
+
+    fs::path dest = canonical_skills_dir() / item.slug;
+    if (lstat_exists(dest)) {
+        auto existing = skill_sources_.find(item.slug);
+        bool same_source = existing != skill_sources_.end() && existing->second.repo == location.repo &&
+                           existing->second.path == repo_path;
+        item.message = same_source ? "already installed, run `singlet update " + item.slug + "`"
+                                   : "a skill with this name is already in the store";
+        return item;
+    }
+
+    if (!place_skill_copy(checkout / repo_path, dest, item.message)) return item;
+
+    SkillSource source;
+    source.repo = location.repo;
+    source.ref = location.ref;
+    source.path = repo_path;
+    source.commit = commit;
+    source.tree_hash = singlet::util::hash_skill_tree(dest).hex_hash;
+    source.updated_at = iso_timestamp_now();
+    skill_sources_[item.slug] = std::move(source);
+    item.installed = true;
+    return item;
+}
+
+std::vector<std::string> Engine::select_source_slugs(
+    const std::vector<std::string>& slugs,
+    std::vector<SourceUpdateStatus>& failures) const {
+    std::vector<std::string> wanted = slugs;
+    if (wanted.empty()) {
+        for (const auto& [slug, source] : skill_sources_) wanted.push_back(slug);
+    }
+
+    std::vector<std::string> selected;
+    for (const auto& slug : wanted) {
+        auto it = skill_sources_.find(slug);
+        SourceUpdateStatus failure;
+        failure.slug = slug;
+        failure.state = SourceState::Failed;
+        if (it == skill_sources_.end()) {
+            failure.message = "no recorded source (not installed with `singlet install`)";
+        } else if (!is_valid_recorded_source(it->second)) {
+            failure.message = "invalid source in singlet.lock.json";
+        } else if (!lstat_exists(canonical_skills_dir() / slug)) {
+            failure.message = "skill folder is missing from the store";
+        } else {
+            selected.push_back(slug);
+            continue;
+        }
+        failures.push_back(std::move(failure));
+    }
+    return selected;
+}
+
+bool Engine::has_local_changes(const std::string& slug, const SkillSource& source) const {
+    return singlet::util::hash_skill_tree(canonical_skills_dir() / slug).hex_hash != source.tree_hash;
+}
+
+std::vector<SourceUpdateStatus> Engine::check_source_updates(const std::vector<std::string>& slugs) {
+    std::vector<SourceUpdateStatus> out;
+    std::vector<std::string> selected = select_source_slugs(slugs, out);
+    std::map<std::string, FetchResult> remote_by_source;
+
+    for (const auto& slug : selected) {
+        const SkillSource& source = skill_sources_.at(slug);
+        SourceUpdateStatus status = initial_status(slug, source);
+        std::string key = source_key(source);
+        if (!remote_by_source.contains(key)) {
+            remote_by_source[key] = remote_commit(git_host_url(), source.repo, source.ref);
+        }
+        const FetchResult& remote = remote_by_source[key];
+        if (!remote.ok) {
+            status.state = SourceState::Failed;
+            status.message = remote.error;
+            out.push_back(std::move(status));
+            continue;
+        }
+        status.latest_commit = remote.commit;
+        bool update_available = remote.commit != source.commit;
+        status.state = update_available ? SourceState::UpdateAvailable : SourceState::UpToDate;
+        if (has_local_changes(slug, source)) {
+            status.state = SourceState::LocalChanges;
+            status.message = update_available ? "update available, but files changed since install"
+                                              : "files changed since install";
+        }
+        out.push_back(std::move(status));
+    }
+    return out;
+}
+
+std::vector<SourceUpdateStatus> Engine::update_from_sources(const std::vector<std::string>& slugs, bool force) {
+    std::vector<SourceUpdateStatus> out;
+    std::vector<std::string> selected = select_source_slugs(slugs, out);
+    if (selected.empty()) return out;
+
+    TempDirGuard clones_root{unique_temp_path(home_dir_ / ".agents", "update")};
+    std::map<std::string, SourceCheckout> checkouts;
+    SourceUpdateBatch batch;
+    batch.id = compact_batch_id();
+    batch.dir = quarantine_root_dir() / batch.id;
+
+    for (const auto& slug : selected) {
+        const SkillSource& source = skill_sources_.at(slug);
+        std::string key = source_key(source);
+        if (!checkouts.contains(key)) {
+            SourceCheckout checkout;
+            checkout.dir = clones_root.path / std::to_string(checkouts.size());
+            checkout.fetch = clone_repo(git_host_url(), source.repo, source.ref, checkout.dir);
+            checkouts[key] = std::move(checkout);
+        }
+        out.push_back(update_one_source(slug, force, checkouts[key], batch));
+    }
+
+    record_quarantine_batch(batch);
+    cached_snapshot_.reset();
+    scan();
+    save_lockfile();
+    return out;
+}
+
+SourceUpdateStatus Engine::update_one_source(
+    const std::string& slug,
+    bool force,
+    const SourceCheckout& checkout,
+    SourceUpdateBatch& batch) {
+    SkillSource& source = skill_sources_.at(slug);
+    SourceUpdateStatus status = initial_status(slug, source);
+    status.state = SourceState::Failed;
+    if (!checkout.fetch.ok) {
+        status.message = checkout.fetch.error;
+        return status;
+    }
+    status.latest_commit = checkout.fetch.commit;
+
+    bool local_changes = has_local_changes(slug, source);
+    if (local_changes && !force) {
+        status.state = SourceState::LocalChanges;
+        status.message = "files changed since install; use --force to replace them (old files go to quarantine)";
+        return status;
+    }
+    if (!local_changes && checkout.fetch.commit == source.commit) {
+        status.state = SourceState::UpToDate;
+        return status;
+    }
+    if (find_skill_paths(checkout.dir, source.path) != std::vector<std::string>{source.path}) {
+        status.message = "no SKILL.md at '" + source.path + "' in the latest commit";
+        return status;
+    }
+
+    fs::path canonical = canonical_skills_dir() / slug;
+    fs::path stage = unique_temp_path(canonical_skills_dir(), "update");
+    TempDirGuard stage_guard{stage};
+    if (!copy_skill_tree(checkout.dir / source.path, stage, status.message)) return status;
+
+    std::string new_hash = singlet::util::hash_skill_tree(stage).hex_hash;
+    if (new_hash == singlet::util::hash_skill_tree(canonical).hex_hash) {
+        source.commit = checkout.fetch.commit;
+        source.tree_hash = new_hash;
+        status.state = SourceState::UpToDate;
+        status.message = "no file changes";
+        return status;
+    }
+
+    fs::path quarantined = batch.dir / (sanitize_filename_token(slug) + "__replaced_" +
+                                        std::to_string(batch.entries.as_array().size() + 1));
+    if (!move_directory_safe(canonical, quarantined, status.message)) return status;
+    if (::rename(stage.c_str(), canonical.c_str()) != 0) {
+        status.message = "Failed to move the new version into the store: " + std::string(std::strerror(errno));
+        std::string restore_err;
+        if (!move_directory_safe(quarantined, canonical, restore_err)) status.message += "; " + restore_err;
+        return status;
+    }
+
+    JsonValue entry = JsonValue::object();
+    entry.set("action", "replaced_from_source");
+    entry.set("slug", slug);
+    entry.set("originalPath", canonical.string());
+    entry.set("quarantinePath", quarantined.string());
+    entry.set("sourceBefore", to_skill_source_json(source));
+    batch.entries.push_back(std::move(entry));
+
+    source.commit = checkout.fetch.commit;
+    source.tree_hash = new_hash;
+    source.updated_at = iso_timestamp_now();
+    status.state = SourceState::Updated;
+    return status;
+}
+
+void Engine::record_quarantine_batch(const SourceUpdateBatch& batch) {
+    if (batch.entries.as_array().empty()) return;
+    std::string timestamp = iso_timestamp_now();
+    JsonValue manifest = JsonValue::object();
+    manifest.set("batchId", batch.id);
+    manifest.set("timestamp", timestamp);
+    manifest.set("entries", batch.entries);
+    write_text_file_atomic(batch.dir / "manifest.json", singlet::util::to_json(manifest, true) + "\n");
+
+    QuarantineBatchRecord rec;
+    rec.id = batch.id;
+    rec.timestamp = timestamp;
+    rec.dir = batch.dir;
+    rec.entry_count = batch.entries.as_array().size();
+    quarantine_history_.push_back(std::move(rec));
+}
+
+OperationResult Engine::restore_replaced_skill(const JsonValue& entry, const fs::path& batch_dir) {
+    std::string slug = entry.get_str("slug");
+    fs::path original(entry.get_str("originalPath"));
+    fs::path quarantined(entry.get_str("quarantinePath"));
+    if (!lstat_exists(quarantined)) return {true, "", ""};
+
+    std::string err;
+    // Keep the newer version instead of deleting it: the user may have edited it after the update.
+    if (lstat_exists(original) &&
+        !move_directory_safe(original, batch_dir / (sanitize_filename_token(slug) + "__undone"), err)) {
+        return {false, err, ""};
+    }
+    if (!move_directory_safe(quarantined, original, err)) return {false, err, ""};
+
+    if (const auto* before = entry.find("sourceBefore")) {
+        if (auto source = skill_source_from_json(*before)) skill_sources_[slug] = std::move(*source);
+    }
+    return {true, "", "restored"};
 }
 
 FrontmatterFixResult Engine::fix_frontmatter(const std::string& slug, bool apply) {
@@ -2599,6 +2973,47 @@ JsonValue to_worktree_hydrate_json(const WorktreeHydrateResult& res) {
     for (const auto& e : res.excluded_entries) excl.push_back(e);
     obj.set("excludedEntries", std::move(excl));
     return obj;
+}
+
+JsonValue to_install_result_json(const InstallResult& res) {
+    JsonValue obj = JsonValue::object();
+    obj.set("ok", res.ok);
+    if (!res.error.empty()) obj.set("error", res.error);
+    obj.set("repo", res.repo);
+    obj.set("commit", res.commit);
+    JsonValue skills = JsonValue::array();
+    for (const auto& sk : res.skills) {
+        JsonValue item = JsonValue::object();
+        item.set("slug", sk.slug);
+        item.set("path", sk.repo_path);
+        item.set("installed", sk.installed);
+        if (!sk.message.empty()) item.set("message", sk.message);
+        JsonValue wired = JsonValue::array();
+        for (const auto& t : sk.wired_targets) wired.push_back(t);
+        item.set("wiredTargets", std::move(wired));
+        JsonValue errors = JsonValue::array();
+        for (const auto& e : sk.wire_errors) errors.push_back(e);
+        item.set("wireErrors", std::move(errors));
+        skills.push_back(std::move(item));
+    }
+    obj.set("skills", std::move(skills));
+    return obj;
+}
+
+JsonValue to_source_statuses_json(const std::vector<SourceUpdateStatus>& statuses) {
+    JsonValue arr = JsonValue::array();
+    for (const auto& st : statuses) {
+        JsonValue item = JsonValue::object();
+        item.set("slug", st.slug);
+        item.set("repo", st.repo);
+        item.set("ref", st.ref);
+        item.set("installedCommit", st.installed_commit);
+        item.set("latestCommit", st.latest_commit);
+        item.set("state", std::string(source_state_to_string(st.state)));
+        if (!st.message.empty()) item.set("message", st.message);
+        arr.push_back(std::move(item));
+    }
+    return arr;
 }
 
 JsonValue to_operation_result_json(const OperationResult& res) {

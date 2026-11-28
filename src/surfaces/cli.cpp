@@ -86,6 +86,9 @@ void print_usage() {
         << "                                          --apply moves copies to quarantine and links\n"
         << "  undo                                    Restore last quarantine batch byte-for-byte\n"
         << "  toggle <skill> [--on t1,t2] [--off t3]  Toggle skill symlinks across targets\n"
+        << "  install <github-url> [--on t1,t2]       Install skill(s) from a GitHub repo, tree, or blob URL\n"
+        << "  update [skill...] [--apply] [--force]   Check installed skills against their GitHub source;\n"
+        << "                                          --apply updates (old files go to quarantine)\n"
         << "  target list [--json]                    List auto-discovered & custom targets\n"
         << "  target add <id> <dir> [--kind <k>]      Register a target or second account\n"
         << "             [--name <label>] [--env <e>] [--clone-from <id>]\n"
@@ -473,6 +476,119 @@ int cmd_toggle(singlet::core::Engine& engine, const std::vector<std::string>& ar
     return exit_code;
 }
 
+std::string short_commit(const std::string& commit) {
+    return commit.substr(0, 7);
+}
+
+int cmd_install(singlet::core::Engine& engine, const std::vector<std::string>& args) {
+    std::string url;
+    std::vector<std::string> on_targets;
+    bool json_out = false;
+    for (size_t i = 0; i < args.size(); ++i) {
+        const auto& a = args[i];
+        if (a == "--on" && i + 1 < args.size()) {
+            on_targets = split_csv(args[++i]);
+        } else if (a.rfind("--on=", 0) == 0) {
+            on_targets = split_csv(std::string_view(a).substr(5));
+        } else if (a == "--json") {
+            json_out = true;
+        } else if (!a.empty() && a[0] != '-' && url.empty()) {
+            url = a;
+        }
+    }
+    if (url.empty()) {
+        std::cerr << "Usage: singlet install <github-url> [--on t1,t2] [--json]\n";
+        return 1;
+    }
+
+    auto res = engine.install_from_github(url, on_targets);
+    if (json_out) {
+        std::cout << singlet::util::to_json(singlet::core::to_install_result_json(res), true) << '\n';
+    } else if (!res.ok) {
+        std::cerr << "singlet install: " << res.error << '\n';
+    } else {
+        std::cout << "From " << res.repo << " @ " << short_commit(res.commit) << ":\n";
+        for (const auto& sk : res.skills) {
+            std::cout << (sk.installed ? "  [OK]   " : "  [SKIP] ") << sk.slug
+                      << (sk.message.empty() ? "" : " (" + sk.message + ")") << '\n';
+            for (const auto& tid : sk.wired_targets) std::cout << "  [ON]   " << sk.slug << " -> " << tid << '\n';
+            for (const auto& err : sk.wire_errors) std::cerr << "  [ERR]  " << sk.slug << " -> " << err << '\n';
+        }
+    }
+    if (!res.ok) return 1;
+    bool wire_failed = std::any_of(res.skills.begin(), res.skills.end(), [](const auto& sk) {
+        return !sk.wire_errors.empty();
+    });
+    return wire_failed ? 1 : 0;
+}
+
+void print_source_status(const singlet::core::SourceUpdateStatus& st, bool ansi) {
+    using singlet::core::SourceState;
+    const char* color = c_dim(ansi);
+    if (st.state == SourceState::UpdateAvailable || st.state == SourceState::LocalChanges) color = c_amber(ansi);
+    if (st.state == SourceState::Updated) color = c_green(ansi);
+    if (st.state == SourceState::Failed) color = c_red(ansi);
+
+    std::cout << "  " << color << std::left << std::setw(17) << singlet::core::source_state_to_string(st.state)
+              << c_reset(ansi) << ' ' << st.slug;
+    if (!st.repo.empty()) {
+        std::cout << c_dim(ansi) << "  " << st.repo << (st.ref.empty() ? "" : "@" + st.ref) << ' '
+                  << short_commit(st.installed_commit);
+        if (!st.latest_commit.empty() && st.latest_commit != st.installed_commit) {
+            std::cout << " -> " << short_commit(st.latest_commit);
+        }
+        std::cout << c_reset(ansi);
+    }
+    if (!st.message.empty()) std::cout << "  (" << st.message << ")";
+    std::cout << '\n';
+}
+
+int cmd_update(singlet::core::Engine& engine, const std::vector<std::string>& args) {
+    std::vector<std::string> slugs;
+    bool apply = false;
+    bool force = false;
+    bool json_out = false;
+    for (const auto& a : args) {
+        if (a == "--apply") {
+            apply = true;
+        } else if (a == "--force") {
+            force = true;
+        } else if (a == "--json") {
+            json_out = true;
+        } else if (!a.empty() && a[0] != '-') {
+            slugs.push_back(a);
+        }
+    }
+
+    auto statuses = apply ? engine.update_from_sources(slugs, force) : engine.check_source_updates(slugs);
+    bool any_failed = std::any_of(statuses.begin(), statuses.end(), [](const auto& st) {
+        return st.state == singlet::core::SourceState::Failed;
+    });
+    if (json_out) {
+        std::cout << singlet::util::to_json(singlet::core::to_source_statuses_json(statuses), true) << '\n';
+        return any_failed ? 1 : 0;
+    }
+    if (statuses.empty()) {
+        std::cout << "No skills installed from GitHub. Add one with `singlet install <github-url>`.\n";
+        return 0;
+    }
+
+    bool ansi = use_ansi_color();
+    for (const auto& st : statuses) print_source_status(st, ansi);
+    bool any_pending = std::any_of(statuses.begin(), statuses.end(), [](const auto& st) {
+        return st.state == singlet::core::SourceState::UpdateAvailable;
+    });
+    if (!apply && any_pending) {
+        std::cout << "\nRun `singlet update --apply` to update.\n";
+    }
+    if (apply && std::any_of(statuses.begin(), statuses.end(), [](const auto& st) {
+            return st.state == singlet::core::SourceState::Updated;
+        })) {
+        std::cout << "\nPrevious versions are in quarantine. Run `singlet undo` to restore them.\n";
+    }
+    return any_failed ? 1 : 0;
+}
+
 int cmd_target(singlet::core::Engine& engine, const std::vector<std::string>& args) {
     if (args.empty()) {
         std::cerr << "Usage: singlet target list | add <id> <skills-dir> [--kind <k>] [--name <n>] [--env <e>] | clone <from> <to> | remove <id>\n";
@@ -751,6 +867,12 @@ int run_cli(int argc, char** argv) {
     }
     if (opts.command == "toggle") {
         return cmd_toggle(engine, opts.args);
+    }
+    if (opts.command == "install") {
+        return cmd_install(engine, opts.args);
+    }
+    if (opts.command == "update") {
+        return cmd_update(engine, opts.args);
     }
     if (opts.command == "target") {
         return cmd_target(engine, opts.args);

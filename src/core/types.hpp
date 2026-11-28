@@ -273,6 +273,8 @@ struct EngineConfig {
     std::vector<std::filesystem::path> scan_roots{};
     size_t max_scan_depth = 6;
     size_t worker_threads = 0;
+    /// Base URL for skill sources; empty means https://github.com. Tests point it at local repos.
+    std::string git_host_url{};
 };
 
 /// Resolves the effective home directory: explicit override, SINGLET_HOME env var, then HOME.

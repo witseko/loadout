@@ -19,7 +19,13 @@ One native binary, no dependencies, macOS and Linux.
 
 ## Install
 
-Download the archive for your system from the [releases page](https://github.com/witseko/singlet/releases) (macOS 13+, or Linux with glibc 2.39+ such as Ubuntu 24.04) and check it against `SHA256SUMS`. Then put the binary on your `PATH`:
+Download the archive for your system from the [releases page](https://github.com/witseko/singlet/releases) (macOS 13+, or Linux with glibc 2.39+ such as Ubuntu 24.04), together with `SHA256SUMS`. In the commands below, change the architecture in the file name (`arm64` or `x86_64`) to match your machine.
+
+On macOS, check the archive and put the binary on your `PATH`:
+
+```bash
+shasum -a 256 -c --ignore-missing SHA256SUMS
+```
 
 ```bash
 tar -xzf singlet-v0.1.0-macos-arm64.tar.gz && cp singlet-v0.1.0-macos-arm64/singlet /usr/local/bin/
@@ -27,7 +33,19 @@ tar -xzf singlet-v0.1.0-macos-arm64.tar.gz && cp singlet-v0.1.0-macos-arm64/sing
 
 The macOS binaries are not signed. If macOS blocks the binary, run `xattr -d com.apple.quarantine /usr/local/bin/singlet`.
 
-Or build from source (needs a C++20 compiler and `make`):
+On Linux, check the archive and put the binary in `~/.local/bin` (make sure that folder is on your `PATH`):
+
+```bash
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+```bash
+tar -xzf singlet-v0.1.0-linux-x86_64.tar.gz && install -D -m 755 singlet-v0.1.0-linux-x86_64/singlet ~/.local/bin/singlet
+```
+
+For the native UI window on Linux, install GTK 3 and WebKitGTK 4.1. Without them, `singlet ui` opens in your web browser. See [Desktop launcher](docs/usage.md#desktop-launcher) for package names.
+
+Or build from source (needs a C++20 compiler and `make`; on Ubuntu, `sudo apt install clang make`):
 
 ```bash
 git clone https://github.com/witseko/singlet.git && cd singlet && make release

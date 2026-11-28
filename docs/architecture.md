@@ -29,6 +29,7 @@ Dependencies flow one way: `surfaces -> core -> util`. `util` does not include `
 | `core/types` | Plain data: targets, adapters, occurrences, snapshots, results. |
 | `core/targets` | Discover agent folders and accounts in the home folder. |
 | `core/scanner` | Walk skill containers in parallel and record every occurrence of a skill. |
+| `core/sources` | Parse GitHub URLs, run `git clone` and `git ls-remote` without a shell, find skill folders in a checkout, and copy them without symlinks. |
 | `core/engine` | Own the lockfile, build the catalog snapshot, wire symlinks, consolidate, undo, profiles, worktree hydration. |
 | `surfaces/cli` | Parse arguments and print results. Dispatches to the other surfaces. |
 | `surfaces/tui` | Raw `termios` terminal UI. |
@@ -61,7 +62,8 @@ All paths are relative to the home folder (`--home` or `SINGLET_HOME` override i
 | :--- | :--- | :--- |
 | `.agents/skills/<slug>/` | `dedup --apply` | Canonical skill folders. |
 | `.agents/quarantine/<batch>/` | `dedup --apply` | Replaced copies and `manifest.json`. `undo` reads the manifest. |
-| `.agents/singlet.lock.json` | every write action | Custom targets, scan roots, profiles, quarantine history. |
+| `.agents/skills/<slug>/` | `install`, `update --apply` | Skills from GitHub. `update` moves the old folder to quarantine first. |
+| `.agents/singlet.lock.json` | every write action | Custom targets, scan roots, profiles, quarantine history, skill sources (`sources`). |
 | `<worktree>/.git/info/exclude` (or the worktree git dir) | `worktree.hydrate` | Paths of hydrated symlinks, so `git status` stays clean. |
 
 Files and symlinks are first written under a temporary name that contains `.singlet-tmp-<pid>-<n>`, then renamed into place. The scanner skips these names.
@@ -80,10 +82,11 @@ HTTP endpoints (all on `127.0.0.1`):
 | `/api/catalog`, `/api/scan` | Read the snapshot, force a rescan |
 | `/api/toggle`, `/api/consolidate`, `/api/undo` | Write actions |
 | `/api/skill`, `/api/targets`, `/api/profiles` | Skill files, targets, profiles |
+| `/api/install`, `/api/sources/check`, `/api/sources/update` | Install from GitHub, check and apply source updates. These run `git` and block the server until it finishes. |
 | `/api/events` | SSE stream |
 
 ## JSON-RPC and MCP
 
-`singlet rpc` reads one JSON-RPC 2.0 request per line. Methods: `catalog.get`, `catalog.scan`, `skill.get`, `skill.save`, `skill.toggle`, `skill.consolidate`, `target.add`, `target.remove`, `target.clone`, `profile.list`, `profile.save`, `profile.apply`, `profile.delete`, `quarantine.undo`, `worktree.hydrate`, `ping`.
+`singlet rpc` reads one JSON-RPC 2.0 request per line. Methods: `catalog.get`, `catalog.scan`, `skill.get`, `skill.save`, `skill.toggle`, `skill.consolidate`, `target.add`, `target.remove`, `target.clone`, `profile.list`, `profile.save`, `profile.apply`, `profile.delete`, `quarantine.undo`, `worktree.hydrate`, `skill.install`, `source.check`, `source.update`, `ping`.
 
 `singlet mcp` speaks the Model Context Protocol on the same transport and maps its tools to the engine. The TypeScript contract in `contrib/t3code-plugin/src/protocol.ts` must match `src/surfaces/rpc.cpp` one to one. The e2e suite (`tests/e2e/tests/mcp-contract.spec.ts`) checks this.

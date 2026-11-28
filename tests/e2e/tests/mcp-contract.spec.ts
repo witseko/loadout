@@ -5,7 +5,7 @@ import { expect, test } from '../support/fixtures.js';
 import { REPO_ROOT } from '../support/paths.js';
 import { parseJsonLines, type RpcResponse } from '../support/sandbox.js';
 
-const EXPECTED_TOOLS = ['singlet_list_catalog', 'singlet_audit_duplicates', 'singlet_toggle_skill', 'singlet_hydrate_worktree'];
+const EXPECTED_TOOLS = ['singlet_list_catalog', 'singlet_audit_duplicates', 'singlet_toggle_skill', 'singlet_hydrate_worktree', 'singlet_install_skills', 'singlet_check_skill_updates', 'singlet_update_skills'];
 
 const REQUIRED_RPC_METHODS = [
   'catalog.get',
@@ -25,6 +25,9 @@ const REQUIRED_RPC_METHODS = [
   'profile.delete',
   'quarantine.undo',
   'worktree.hydrate',
+  'skill.install',
+  'source.check',
+  'source.update',
 ];
 
 function contentLengthFrame(message: object): string {

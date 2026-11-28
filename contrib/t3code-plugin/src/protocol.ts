@@ -272,6 +272,9 @@ export const SINGLET_RPC_METHODS = [
   "target.clone",
   "quarantine.undo",
   "worktree.hydrate",
+  "skill.install",
+  "source.check",
+  "source.update",
   "profile.list",
   "profile.save",
   "profile.apply",
@@ -531,6 +534,63 @@ export interface WorktreeHydrateResult {
   readonly excludeFile?: string;
 }
 
+export interface SkillInstallParams {
+  /** GitHub repo, `tree/<ref>/<path>`, or `blob/<ref>/<path>/SKILL.md` URL. */
+  readonly url: string;
+  /** Target IDs to turn the new skills on in. */
+  readonly targets?: readonly string[];
+}
+
+export interface InstalledSkill {
+  readonly slug: string;
+  readonly path: string;
+  readonly installed: boolean;
+  readonly message?: string;
+  readonly wiredTargets: readonly string[];
+  readonly wireErrors: readonly string[];
+}
+
+export interface SkillInstallResult {
+  readonly ok: boolean;
+  readonly error?: string;
+  readonly repo: string;
+  readonly commit: string;
+  readonly skills: readonly InstalledSkill[];
+  readonly catalog?: CatalogSnapshot;
+}
+
+export type SourceState = "up-to-date" | "update-available" | "local-changes" | "updated" | "failed";
+
+export interface SourceUpdateStatus {
+  readonly slug: string;
+  readonly repo: string;
+  readonly ref: string;
+  readonly installedCommit: string;
+  readonly latestCommit: string;
+  readonly state: SourceState;
+  readonly message?: string;
+}
+
+export interface SourceCheckParams {
+  /** Skill slugs; all skills installed from GitHub when omitted. */
+  readonly skills?: readonly string[];
+}
+
+export interface SourceCheckResult {
+  readonly statuses: readonly SourceUpdateStatus[];
+}
+
+export interface SourceUpdateParams {
+  readonly skills?: readonly string[];
+  /** Also replace skills with local edits (old files go to quarantine). */
+  readonly force?: boolean;
+}
+
+export interface SourceUpdateResult {
+  readonly statuses: readonly SourceUpdateStatus[];
+  readonly catalog?: CatalogSnapshot;
+}
+
 export interface SingletRpcContract {
   "catalog.get": {
     params: CatalogGetParams;
@@ -583,6 +643,18 @@ export interface SingletRpcContract {
   "worktree.hydrate": {
     params: WorktreeHydrateParams;
     result: WorktreeHydrateResult;
+  };
+  "skill.install": {
+    params: SkillInstallParams;
+    result: SkillInstallResult;
+  };
+  "source.check": {
+    params: SourceCheckParams;
+    result: SourceCheckResult;
+  };
+  "source.update": {
+    params: SourceUpdateParams;
+    result: SourceUpdateResult;
   };
   "profile.list": {
     params: ProfileListParams;
@@ -723,6 +795,9 @@ export interface SingletBrowserTransport {
   applyProfile?(params: ProfileApplyParams): Promise<ProfileApplyResult>;
   deleteProfile?(params: ProfileDeleteParams): Promise<ProfileDeleteResult>;
   hydrateWorktree?(params: WorktreeHydrateParams): Promise<WorktreeHydrateResult>;
+  installSkills?(params: SkillInstallParams): Promise<SkillInstallResult>;
+  checkSources?(params?: SourceCheckParams): Promise<SourceCheckResult>;
+  updateSources?(params?: SourceUpdateParams): Promise<SourceUpdateResult>;
   subscribe?(listener: (event: SingletSwitchboardEvent) => void): () => void;
   /** Generic JSON-RPC 2.0 dispatch compatible with `<singlet-switchboard>` */
   rpc?<M extends SingletRpcMethod>(

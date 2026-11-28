@@ -13,6 +13,7 @@
 
 #include "core/engine.hpp"
 #include "core/scanner.hpp"
+#include "core/sources.hpp"
 #include "core/targets.hpp"
 #include "core/types.hpp"
 #include "util/json.hpp"
@@ -698,6 +699,121 @@ void test_scanner_skips_linked_worktrees() {
     CHECK(has_slug(from_worktree, "wt-skill"));
 }
 
+void test_parse_github_url() {
+    std::string err;
+    auto repo_only = parse_github_url("https://github.com/acme/skills", err);
+    CHECK(repo_only && repo_only->repo == "acme/skills" && repo_only->ref.empty() && repo_only->path.empty());
+
+    auto with_git = parse_github_url("github.com/acme/skills.git/", err);
+    CHECK(with_git && with_git->repo == "acme/skills");
+
+    auto tree = parse_github_url("https://github.com/acme/skills/tree/v1.2/skills/pdf", err);
+    CHECK(tree && tree->ref == "v1.2" && tree->path == "skills/pdf");
+
+    auto blob = parse_github_url("https://github.com/acme/skills/blob/main/skills/pdf/SKILL.md", err);
+    CHECK(blob && blob->ref == "main" && blob->path == "skills/pdf");
+
+    for (const char* bad : {"http://github.com/acme/skills", "https://gitlab.com/acme/skills",
+                            "https://github.com/acme", "https://github.com/acme/skills?tab=x",
+                            "https://github.com/acme/skills/tree/main/../etc",
+                            "https://github.com/acme/skills/blob/main/README.md",
+                            "https://github.com/acme/skills/tree/-x/a", "https://github.com/ac_me/skills",
+                            "https://github.com/acme/skills/issues/1"}) {
+        err.clear();
+        CHECK(!parse_github_url(bad, err));
+        CHECK(!err.empty());
+    }
+}
+
+void git_in(const fs::path& repo, const std::string& args) {
+    std::string cmd = "git -C '" + repo.string() + "' -c user.name=t -c user.email=t@t " + args + " >/dev/null 2>&1";
+    CHECK(std::system(cmd.c_str()) == 0);
+}
+
+/// Creates a local repository served as <host>/acme/skills.git with two skills.
+fs::path make_source_repo(const fs::path& host_root) {
+    fs::path repo = host_root / "acme" / "skills.git";
+    fs::create_directories(repo);
+    git_in(repo, "init -q -b main");
+    write_file(repo / "skills" / "alpha" / "SKILL.md", "---\nname: alpha\ndescription: A\n---\nv1\n");
+    write_file(repo / "skills" / "alpha" / "ref.md", "notes\n");
+    write_file(repo / ".claude" / "skills" / "beta" / "SKILL.md", "---\nname: beta\ndescription: B\n---\nb\n");
+    write_file(repo / "README.md", "readme\n");
+    fs::create_directory_symlink("/etc", repo / "skills" / "linked");
+    fs::create_symlink("/etc/hosts", repo / "skills" / "alpha" / "hosts");
+    git_in(repo, "add -A");
+    git_in(repo, "commit -q -m init");
+    return repo;
+}
+
+void test_install_and_update_from_source() {
+    TempSandbox sb;
+    fs::path home = sb.root / "home";
+    fs::path host_root = sb.root / "host";
+    fs::create_directories(home);
+    fs::path repo = make_source_repo(host_root);
+
+    EngineConfig cfg;
+    cfg.home_dir = home;
+    cfg.git_host_url = "file://" + host_root.string();
+    fs::path store = home / ".agents" / "skills";
+
+    {
+        Engine engine(cfg);
+        // Whole repository: finds both skills, skips the symlinked folder and copies no symlinks.
+        auto res = engine.install_from_github("https://github.com/acme/skills");
+        CHECK(res.ok);
+        CHECK(res.skills.size() == 2);
+        CHECK(is_real_dir_path(store / "alpha") && is_real_dir_path(store / "beta"));
+        CHECK(!fs::exists(store / "linked"));
+        CHECK(!fs::exists(fs::symlink_status(store / "alpha" / "hosts")));
+        CHECK(read_file(store / "alpha" / "ref.md") == "notes\n");
+
+        auto again = engine.install_from_github("https://github.com/acme/skills/tree/main/skills/alpha");
+        CHECK(again.ok && again.skills.size() == 1 && !again.skills[0].installed);
+
+        auto missing = engine.install_from_github("https://github.com/acme/skills/tree/main/nope");
+        CHECK(!missing.ok);
+        auto not_found = engine.install_from_github("https://github.com/acme/other");
+        CHECK(!not_found.ok);
+    }
+
+    // Sources survive a reload from singlet.lock.json.
+    Engine engine(cfg);
+    CHECK(engine.skill_sources().size() == 2);
+    CHECK(engine.skill_sources().at("alpha").path == "skills/alpha");
+
+    auto checked = engine.check_source_updates({});
+    CHECK(checked.size() == 2);
+    CHECK(checked[0].state == SourceState::UpToDate);
+
+    write_file(repo / "skills" / "alpha" / "SKILL.md", "---\nname: alpha\ndescription: A\n---\nv2\n");
+    git_in(repo, "commit -q -am v2");
+    checked = engine.check_source_updates({"alpha"});
+    CHECK(checked.size() == 1 && checked[0].state == SourceState::UpdateAvailable);
+
+    // A local edit blocks the update until --force.
+    write_file(store / "alpha" / "local.md", "mine\n");
+    auto blocked = engine.update_from_sources({"alpha"}, false);
+    CHECK(blocked.size() == 1 && blocked[0].state == SourceState::LocalChanges);
+    CHECK(read_file(store / "alpha" / "local.md") == "mine\n");
+
+    auto updated = engine.update_from_sources({"alpha"}, true);
+    CHECK(updated.size() == 1 && updated[0].state == SourceState::Updated);
+    CHECK(read_file(store / "alpha" / "SKILL.md").find("v2") != std::string::npos);
+    CHECK(!fs::exists(store / "alpha" / "local.md"));
+    CHECK(engine.check_source_updates({"alpha"})[0].state == SourceState::UpToDate);
+
+    // Undo brings back the edited folder and the old source record.
+    CHECK(engine.undo_last_quarantine().ok);
+    CHECK(read_file(store / "alpha" / "local.md") == "mine\n");
+    CHECK(read_file(store / "alpha" / "SKILL.md").find("v1") != std::string::npos);
+    CHECK(engine.check_source_updates({"alpha"})[0].state == SourceState::LocalChanges);
+
+    auto unknown = engine.update_from_sources({"ghost"}, false);
+    CHECK(unknown.size() == 1 && unknown[0].state == SourceState::Failed);
+}
+
 int main() {
     test_discovery_duplicates_drift_and_safety();
     test_consolidate_quarantine_undo_and_drift();
@@ -705,6 +821,8 @@ int main() {
     test_scanner_skips_linked_worktrees();
     test_multifile_inspector_and_security();
     test_profiles_lifecycle();
+    test_parse_github_url();
+    test_install_and_update_from_source();
     std::cout << "PASS: all " << g_assertions << " core assertions passed.\n";
     return 0;
 }

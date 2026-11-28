@@ -340,6 +340,35 @@ JsonValue dispatch_rpc_method(Engine& engine, const JsonValue& id, std::string_v
         return make_rpc_result(id, std::move(out));
     }
 
+    if (method == "skill.install") {
+        std::string url = params.get_str("url", "");
+        if (url.empty()) {
+            return make_rpc_error(id, -32602, "skill.install requires 'url'");
+        }
+        auto res = engine.install_from_github(url, extract_string_array(params, "targets"));
+        JsonValue out = singlet::core::to_install_result_json(res);
+        if (res.ok) {
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
+        }
+        return make_rpc_result(id, std::move(out));
+    }
+
+    if (method == "source.check") {
+        auto statuses = engine.check_source_updates(extract_string_array(params, "skills"));
+        JsonValue out = JsonValue::object();
+        out.set("statuses", singlet::core::to_source_statuses_json(statuses));
+        return make_rpc_result(id, std::move(out));
+    }
+
+    if (method == "source.update") {
+        auto statuses = engine.update_from_sources(
+            extract_string_array(params, "skills"), params.get_bool("force", false));
+        JsonValue out = JsonValue::object();
+        out.set("statuses", singlet::core::to_source_statuses_json(statuses));
+        out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
+        return make_rpc_result(id, std::move(out));
+    }
+
     if (method == "quarantine.undo") {
         auto res = engine.undo_last_quarantine();
         JsonValue out = singlet::core::to_operation_result_json(res);
@@ -489,6 +518,42 @@ JsonValue make_mcp_tools_list() {
             {"skill"}));
     }
 
+    {
+        JsonValue props = JsonValue::object();
+        props.set("url", make_prop("string", "GitHub URL: a repo, a tree/<ref>/<path> folder, or a blob/<ref>/<path>/SKILL.md link"));
+        JsonValue targets_prop = make_prop("array", "Optional target IDs to turn the new skills on in");
+        targets_prop.set("items", JsonValue::object({{"type", "string"}}));
+        props.set("targets", std::move(targets_prop));
+        tools.push_back(make_mcp_tool(
+            "singlet_install_skills",
+            "Install one skill or every skill at a GitHub URL into the canonical store and record its source for updates. Never replaces an existing skill.",
+            std::move(props),
+            {"url"}));
+    }
+
+    {
+        JsonValue props = JsonValue::object();
+        JsonValue skills_prop = make_prop("array", "Optional skill slugs; all skills installed from GitHub when omitted");
+        skills_prop.set("items", JsonValue::object({{"type", "string"}}));
+        props.set("skills", std::move(skills_prop));
+        tools.push_back(make_mcp_tool(
+            "singlet_check_skill_updates",
+            "Compare skills installed from GitHub with the latest commit of their source. Read-only.",
+            std::move(props)));
+    }
+
+    {
+        JsonValue props = JsonValue::object();
+        JsonValue skills_prop = make_prop("array", "Optional skill slugs; all skills installed from GitHub when omitted");
+        skills_prop.set("items", JsonValue::object({{"type", "string"}}));
+        props.set("skills", std::move(skills_prop));
+        props.set("force", make_prop("boolean", "true to also replace skills with local edits (old files go to quarantine)"));
+        tools.push_back(make_mcp_tool(
+            "singlet_update_skills",
+            "Update skills from their GitHub source. Replaced folders go to quarantine, so undo restores them.",
+            std::move(props)));
+    }
+
     JsonValue result = JsonValue::object();
     result.set("tools", std::move(tools));
     return result;
@@ -605,6 +670,30 @@ JsonValue handle_mcp_tool_call(Engine& engine, const JsonValue& id, const JsonVa
         }
         auto res = engine.fix_frontmatter(skill, apply);
         return make_rpc_result(id, make_mcp_tool_response(singlet::core::to_frontmatter_fix_json(res), !res.ok));
+    }
+
+    if (tool_name == "singlet_install_skills") {
+        std::string url = args.get_str("url", "");
+        if (url.empty()) {
+            return make_rpc_result(
+                id,
+                make_mcp_tool_response(JsonValue::object({{"ok", false}, {"error", "Missing 'url'"}}), true));
+        }
+        auto res = engine.install_from_github(url, extract_string_array(args, "targets"));
+        return make_rpc_result(id, make_mcp_tool_response(singlet::core::to_install_result_json(res), !res.ok));
+    }
+
+    if (tool_name == "singlet_check_skill_updates" || tool_name == "singlet_update_skills") {
+        auto slugs = extract_string_array(args, "skills");
+        auto statuses = tool_name == "singlet_update_skills"
+                            ? engine.update_from_sources(slugs, args.get_bool("force", false))
+                            : engine.check_source_updates(slugs);
+        bool failed = std::any_of(statuses.begin(), statuses.end(), [](const auto& st) {
+            return st.state == singlet::core::SourceState::Failed;
+        });
+        JsonValue out = JsonValue::object();
+        out.set("statuses", singlet::core::to_source_statuses_json(statuses));
+        return make_rpc_result(id, make_mcp_tool_response(out, failed));
     }
 
     return make_rpc_error(id, -32602, "Unknown MCP tool: " + tool_name);

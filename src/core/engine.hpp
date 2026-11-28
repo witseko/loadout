@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/sources.hpp"
 #include "core/types.hpp"
 #include "util/json.hpp"
 
@@ -44,6 +45,22 @@ public:
         const std::string& keep_both_slug = {});
     /// Restores the most recent quarantine batch byte-for-byte from its manifest.json.
     [[nodiscard]] OperationResult undo_last_quarantine();
+
+    /// Installs every skill found at a GitHub URL into canonical_skills_dir() and records its source,
+    /// then turns each new skill on in wire_targets. Never replaces an existing skill folder.
+    [[nodiscard]] InstallResult install_from_github(
+        const std::string& url,
+        const std::vector<std::string>& wire_targets = {});
+    /// Compares skills (all with a recorded source when slugs is empty) with the latest commit
+    /// of their source. Read-only.
+    [[nodiscard]] std::vector<SourceUpdateStatus> check_source_updates(const std::vector<std::string>& slugs);
+    /// Updates skills from their sources. Skips skills with local edits unless force is set.
+    /// Replaced folders go to one quarantine batch, so undo_last_quarantine() restores them.
+    [[nodiscard]] std::vector<SourceUpdateStatus> update_from_sources(
+        const std::vector<std::string>& slugs,
+        bool force);
+    /// Returns the recorded sources of installed skills, keyed by slug.
+    [[nodiscard]] const std::map<std::string, SkillSource>& skill_sources() const { return skill_sources_; }
 
     /// Previews or writes Antigravity-compliant YAML frontmatter for one skill.
     [[nodiscard]] FrontmatterFixResult fix_frontmatter(const std::string& slug, bool apply);
@@ -115,6 +132,19 @@ private:
     std::string active_profile_;
     std::vector<QuarantineBatchRecord> quarantine_history_;
     std::optional<CatalogSnapshot> cached_snapshot_;
+    std::map<std::string, SkillSource> skill_sources_;
+
+    /// A fresh clone of one source repository at one ref, shared by all skills from it.
+    struct SourceCheckout {
+        std::filesystem::path dir;
+        FetchResult fetch;
+    };
+    /// Quarantine batch collected while updating skills from their sources.
+    struct SourceUpdateBatch {
+        std::string id;
+        std::filesystem::path dir;
+        singlet::util::JsonValue entries = singlet::util::JsonValue::array();
+    };
 
     [[nodiscard]] std::optional<TargetInstance> find_target(const std::string& target_id) const;
     [[nodiscard]] std::optional<std::filesystem::path> find_skill_dir(const std::string& slug) const;
@@ -124,6 +154,25 @@ private:
     [[nodiscard]] OperationResult remove_managed_symlink(const std::filesystem::path& link_path) const;
     [[nodiscard]] bool is_managed_symlink(const std::filesystem::path& link_path) const;
     void sync_antigravity_skills_json(const TargetInstance& target) const;
+    [[nodiscard]] std::string git_host_url() const;
+    [[nodiscard]] InstalledSkill install_one_skill(
+        const GithubLocation& location,
+        const std::string& commit,
+        const std::filesystem::path& checkout,
+        const std::string& repo_path);
+    [[nodiscard]] std::vector<std::string> select_source_slugs(
+        const std::vector<std::string>& slugs,
+        std::vector<SourceUpdateStatus>& failures) const;
+    [[nodiscard]] bool has_local_changes(const std::string& slug, const SkillSource& source) const;
+    [[nodiscard]] SourceUpdateStatus update_one_source(
+        const std::string& slug,
+        bool force,
+        const SourceCheckout& checkout,
+        SourceUpdateBatch& batch);
+    void record_quarantine_batch(const SourceUpdateBatch& batch);
+    [[nodiscard]] OperationResult restore_replaced_skill(
+        const singlet::util::JsonValue& entry,
+        const std::filesystem::path& batch_dir);
 };
 
 /// Serializes a CatalogSnapshot matching the REST and JSON-RPC 2.0 contract.
@@ -138,6 +187,10 @@ private:
 [[nodiscard]] singlet::util::JsonValue to_frontmatter_fix_json(const FrontmatterFixResult& res);
 /// Serializes a WorktreeHydrateResult to JSON.
 [[nodiscard]] singlet::util::JsonValue to_worktree_hydrate_json(const WorktreeHydrateResult& res);
+/// Serializes an InstallResult to JSON.
+[[nodiscard]] singlet::util::JsonValue to_install_result_json(const InstallResult& res);
+/// Serializes source check or update results to a JSON array.
+[[nodiscard]] singlet::util::JsonValue to_source_statuses_json(const std::vector<SourceUpdateStatus>& statuses);
 /// Serializes an OperationResult to JSON.
 [[nodiscard]] singlet::util::JsonValue to_operation_result_json(const OperationResult& res);
 /// Serializes saved profiles and active profile name to JSON.

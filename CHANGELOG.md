@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- `singlet install <github-url>`: install one skill or every skill in a GitHub repo, folder, or `SKILL.md` link into `~/.agents/skills`, with `--on` to wire them right away.
+- `singlet update [skill...] [--apply] [--force]`: check installed skills against their GitHub source and update them. Old versions go to quarantine, so `singlet undo` restores them. Skills with local edits need `--force`.
+- Install and update in every surface: a **+ Install** modal in `singlet ui`, the MCP tools `singlet_install_skills`, `singlet_check_skill_updates`, and `singlet_update_skills`, and the JSON-RPC methods `skill.install`, `source.check`, and `source.update`.
+
 ## [0.1.0] - 2026-11-27
 
 First public release.

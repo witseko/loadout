@@ -325,6 +325,16 @@ void send_sse_heartbeat(std::vector<int>& sse_fds) {
     }
 }
 
+std::vector<std::string> body_string_array(const JsonValue& body, std::string_view key) {
+    std::vector<std::string> out;
+    if (const JsonValue* arr = body.find(key); arr && arr->is_array()) {
+        for (const auto& item : arr->as_array()) {
+            if (item.is_string() && !item.as_string().empty()) out.push_back(item.as_string());
+        }
+    }
+    return out;
+}
+
 HttpResponse handle_api_request(
     Engine& engine,
     const HttpRequest& req,
@@ -675,6 +685,43 @@ HttpResponse handle_api_request(
         }
 
         return error_response(400, "Bad Request", "Unknown profile action: " + action);
+    }
+
+    // Install and update run `git` and block this single-threaded server until it finishes.
+    if (req.method == "POST" && req.path == "/api/install") {
+        auto body_opt = parse_body();
+        if (!body_opt || !body_opt->is_object()) {
+            return error_response(400, "Bad Request", "Invalid JSON body");
+        }
+        std::string url = body_opt->get_str("url", "");
+        if (url.empty()) {
+            return error_response(400, "Bad Request", "Missing 'url'");
+        }
+        auto res = engine.install_from_github(url, body_string_array(*body_opt, "targets"));
+        JsonValue out = singlet::core::to_install_result_json(res);
+        if (res.ok) {
+            out_mutated = true;
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
+        }
+        return json_response(out, res.ok ? 200 : 400, res.ok ? "OK" : "Bad Request");
+    }
+
+    if (req.method == "POST" && (req.path == "/api/sources/check" || req.path == "/api/sources/update")) {
+        auto body_opt = parse_body();
+        if (!body_opt || !body_opt->is_object()) {
+            return error_response(400, "Bad Request", "Invalid JSON body");
+        }
+        auto slugs = body_string_array(*body_opt, "skills");
+        bool apply = req.path == "/api/sources/update";
+        auto statuses = apply ? engine.update_from_sources(slugs, body_opt->get_bool("force", false))
+                              : engine.check_source_updates(slugs);
+        JsonValue out = JsonValue::object();
+        out.set("statuses", singlet::core::to_source_statuses_json(statuses));
+        if (apply) {
+            out_mutated = true;
+            out.set("catalog", singlet::core::to_catalog_json(engine.get_catalog()));
+        }
+        return json_response(out);
     }
 
     if (req.method == "POST" && req.path == "/api/undo") {

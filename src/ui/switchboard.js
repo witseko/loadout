@@ -408,6 +408,9 @@
       listProfiles: () => req('/api/profiles'),
       manageProfile: (params) => req('/api/profiles', { method: 'POST', body: JSON.stringify(params) }),
       undo: () => req('/api/undo', { method: 'POST', body: '{}' }),
+      installSkills: (params) => req('/api/install', { method: 'POST', body: JSON.stringify(params) }),
+      checkSources: (params = {}) => req('/api/sources/check', { method: 'POST', body: JSON.stringify(params) }),
+      updateSources: (params = {}) => req('/api/sources/update', { method: 'POST', body: JSON.stringify(params) }),
       subscribe(onEvent) {
         if (typeof EventSource === 'undefined') return () => {};
         const es = new EventSource('/api/events');
@@ -473,6 +476,9 @@
       },
       hydrateWorktree: (p) => (custom.hydrateWorktree ? custom.hydrateWorktree(p) : (rpcCall ? rpcCall('worktree.hydrate', p) : Promise.reject(new Error('Worktree hydration requires host transport')))),
       undo: () => (custom.undo ? custom.undo() : rpcCall('quarantine.undo', {})),
+      installSkills: (p) => (custom.installSkills ? custom.installSkills(p) : (rpcCall ? rpcCall('skill.install', p) : Promise.reject(new Error('Install not supported by transport')))),
+      checkSources: (p = {}) => (custom.checkSources ? custom.checkSources(p) : (rpcCall ? rpcCall('source.check', p) : Promise.reject(new Error('Update check not supported by transport')))),
+      updateSources: (p = {}) => (custom.updateSources ? custom.updateSources(p) : (rpcCall ? rpcCall('source.update', p) : Promise.reject(new Error('Update not supported by transport')))),
       subscribe: (cb) => (typeof custom.subscribe === 'function' ? custom.subscribe(cb) : () => {}),
     };
   }
@@ -1265,6 +1271,101 @@
       }
     }
 
+    // ── Overlays: Install from GitHub and source updates ──────────────────────
+    openSourcesOverlay() {
+      this.state.menu = null;
+      this.state.overlay = {
+        type: 'sources',
+        url: '',
+        targets: [],
+        busy: false,
+        error: '',
+        result: null,
+        statuses: null,
+      };
+      this._renderOverlay();
+      setTimeout(() => this.querySelector('#src-url')?.focus(), 10);
+      this.checkSources();
+    }
+
+    _sourcesOverlay() {
+      return this.state.overlay?.type === 'sources' ? this.state.overlay : null;
+    }
+
+    toggleSourceTarget(targetId) {
+      const ov = this._sourcesOverlay();
+      if (!ov || ov.busy) return;
+      ov.targets = ov.targets.includes(targetId)
+        ? ov.targets.filter((t) => t !== targetId)
+        : [...ov.targets, targetId];
+      this._renderOverlay();
+    }
+
+    async submitInstall() {
+      const ov = this._sourcesOverlay();
+      if (!ov || ov.busy) return;
+      const url = ov.url.trim();
+      if (!url) { ov.error = 'Paste a GitHub URL.'; this._renderOverlay(); return; }
+      ov.busy = true;
+      ov.error = '';
+      ov.result = null;
+      this._renderOverlay();
+      try {
+        const res = await this._api.installSkills({ url, targets: ov.targets });
+        if (res && res.catalog) this.state.catalog = normalizeCatalog(res.catalog);
+        else await this.loadCatalog({ silent: true });
+        const installed = (res.skills || []).filter((s) => s.installed).length;
+        this.showToast(`Installed ${installed} skill${installed === 1 ? '' : 's'} from ${res.repo}`, { mono: String(res.commit || '').slice(0, 7) });
+        ov.result = res;
+        ov.url = '';
+        ov.busy = false;
+        this._renderAll();
+        this.checkSources();
+      } catch (err) {
+        ov.busy = false;
+        ov.error = err.message;
+        this._renderOverlay();
+      }
+    }
+
+    async checkSources() {
+      const ov = this._sourcesOverlay();
+      if (!ov) return;
+      ov.checking = true;
+      this._renderOverlay();
+      try {
+        const res = await this._api.checkSources({});
+        ov.statuses = res.statuses || [];
+      } catch (err) {
+        ov.error = `Update check failed: ${err.message}`;
+      }
+      ov.checking = false;
+      if (this._sourcesOverlay() === ov) this._renderOverlay();
+    }
+
+    async updateSources(skills, force) {
+      const ov = this._sourcesOverlay();
+      if (!ov || ov.busy) return;
+      ov.busy = true;
+      ov.error = '';
+      this._renderOverlay();
+      try {
+        const res = await this._api.updateSources({ skills, force: Boolean(force) });
+        if (res && res.catalog) this.state.catalog = normalizeCatalog(res.catalog);
+        else await this.loadCatalog({ silent: true });
+        const updated = (res.statuses || []).filter((s) => s.state === 'updated').length;
+        this.showToast(`Updated ${updated} skill${updated === 1 ? '' : 's'}`, { undo: updated > 0 });
+        const bySlug = new Map((res.statuses || []).map((st) => [st.slug, st]));
+        ov.statuses = (ov.statuses || []).map((st) => bySlug.get(st.slug) || st);
+        ov.busy = false;
+        this._renderAll();
+      } catch (err) {
+        ov.busy = false;
+        ov.error = err.message;
+        this._renderOverlay();
+      }
+    }
+
     // ── Overlays: Slide-Over Skill Inspector ────────────────────────────────
     async openInspector(slug) {
       const sk = this.state.catalog.skills.find((s) => s.slug === slug);
@@ -1449,6 +1550,7 @@
         return;
       }
 
+      if (typing && e.key === 'Enter' && e.target.id === 'src-url') { this.submitInstall(); return; }
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === '?') { this.state.help = !this.state.help; this._renderHelp(); return; }
       if (e.key === 'u' && !this.state.overlay) { this.triggerUndo(); return; }
@@ -1566,6 +1668,21 @@
           break;
         case 'add-target':
           this.openAddTargetOverlay();
+          break;
+        case 'sources':
+          this.openSourcesOverlay();
+          break;
+        case 'src-target':
+          this.toggleSourceTarget(ds.v);
+          break;
+        case 'src-install':
+          this.submitInstall();
+          break;
+        case 'src-check':
+          this.checkSources();
+          break;
+        case 'src-update':
+          this.updateSources(ds.slug ? [ds.slug] : [], ds.force === '1');
           break;
         case 'add-detected':
           this.quickAddSibling(ds.id);
@@ -1700,6 +1817,8 @@
         this.state.query = e.target.value;
         this.state.cursor.r = 0;
         this._renderMatrixOnly();
+      } else if (key === 'src.url' && this.state.overlay?.type === 'sources') {
+        this.state.overlay.url = e.target.value;
       } else if (key === 'diff.keepBothSlug' && this.state.overlay?.type === 'diff') {
         this.state.overlay.keepBothSlug = e.target.value;
       } else if (key.startsWith('add.') && this.state.overlay?.type === 'add') {
@@ -1760,6 +1879,7 @@
             </button>
           </div>
           <div class="spacer"></div>
+          <button class="btn sm" data-action="sources" title="Install skills from GitHub and check for updates">+ Install</button>
           <button class="btn sm" data-action="scan" ${this.state.scanning ? 'disabled' : ''} title="Rescan laptop (last scan ${fmtScanMs(c.lastScanMs)} ms)">
             ${this.state.scanning ? 'Scanning...' : '\u21bb Rescan'}
           </button>
@@ -2259,6 +2379,7 @@
       const scrim = '<div class="scrim" data-action="close"></div>';
       if (ov.type === 'diff') slot.innerHTML = scrim + this._tplDiffOverlay(ov);
       else if (ov.type === 'add') slot.innerHTML = scrim + this._tplAddOverlay(ov);
+      else if (ov.type === 'sources') slot.innerHTML = scrim + this._tplSourcesOverlay(ov);
       else if (ov.type === 'inspect') slot.innerHTML = scrim + this._tplInspectorOverlay(ov);
       else slot.innerHTML = '';
     }
@@ -2422,6 +2543,89 @@
         `singlet target add ${slugify(a.id || a.name) || '<id>'} "${cleanPath}" --kind ${a.adapter}${a.env ? ` --env "${a.env}"` : ''}`,
       ] : ['# fill in a skills directory path to preview filesystem changes'];
       return cmds.map((c) => `<div class="${c.startsWith('#') ? 'faint' : ''}">${c.startsWith('#') ? '' : '<span class="faint">$ </span>'}${esc(c)}</div>`).join('');
+    }
+
+    _tplSourcesOverlay(ov) {
+      const targets = this.state.catalog.targets;
+      const stateBadge = {
+        'up-to-date': '',
+        'update-available': 'am',
+        'local-changes': 'am',
+        updated: 'em',
+        failed: 'ro',
+      };
+      const short = (sha) => String(sha || '').slice(0, 7);
+      const statuses = ov.statuses || [];
+      const pending = statuses.filter((s) => s.state === 'update-available').length;
+      const dis = ov.busy ? 'disabled' : '';
+
+      const resultRows = (ov.result?.skills || []).map((s) => `
+        <div>
+          <span class="${s.installed ? 'em' : 'am'}">${s.installed ? '\u2713' : '\u2013'}</span>
+          <span><b style="font-family:var(--sans)">${esc(s.slug)}</b> <span class="faint">${esc(s.path || '/')}</span>${s.message ? ` <span class="dim">${esc(s.message)}</span>` : ''}${(s.wireErrors || []).map((w) => `<br><span class="ro">${esc(w)}</span>`).join('')}</span>
+          <span class="faint">${(s.wiredTargets || []).map(esc).join(', ')}</span>
+        </div>
+      `).join('');
+
+      const statusRows = statuses.map((s) => {
+        let action = '';
+        if (s.state === 'update-available') action = `<button class="btn sm primary" data-action="src-update" data-slug="${esc(s.slug)}" ${dis}>Update</button>`;
+        if (s.state === 'local-changes') action = `<button class="btn sm danger" data-action="src-update" data-slug="${esc(s.slug)}" data-force="1" ${dis} title="Replace your edits; the old folder goes to quarantine">Replace edits</button>`;
+        const commits = s.latestCommit && s.latestCommit !== s.installedCommit
+          ? `${short(s.installedCommit)} \u2192 ${short(s.latestCommit)}`
+          : short(s.installedCommit);
+        return `
+          <div style="grid-template-columns:118px 1fr auto">
+            <span class="badge ${stateBadge[s.state] || ''}" title="${esc(s.state)}">${esc(s.state)}</span>
+            <span><b style="font-family:var(--sans)">${esc(s.slug)}</b> <span class="dim">${esc(s.repo)}${s.ref ? `@${esc(s.ref)}` : ''} ${esc(commits)}</span>${s.message ? `<br><span class="faint" style="font-size:10.5px">${esc(s.message)}</span>` : ''}</span>
+            ${action || '<span></span>'}
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="modal" role="dialog" aria-label="Install skills from GitHub">
+          <div class="ov-head">
+            <h2>Install from GitHub</h2>
+            <span class="faint">skills land in ~/.agents/skills and keep their source for updates</span>
+            <button class="btn ghost x" data-action="close">Esc \u2715</button>
+          </div>
+          <div class="ov-body">
+            <div class="field">
+              <label for="src-url">GitHub URL</label>
+              <div style="display:flex;gap:8px">
+                <input id="src-url" class="input mono" placeholder="https://github.com/owner/repo/tree/main/skills/pdf" value="${esc(ov.url)}" data-input="src.url" ${dis}>
+                <button class="btn primary" data-action="src-install" ${dis}>${ov.busy ? 'Working...' : 'Install'}</button>
+              </div>
+              <span class="hint">A repo installs every skill in it. A tree or SKILL.md link installs one folder. Existing skills are never replaced.</span>
+            </div>
+            ${targets.length ? `
+              <div class="field" style="margin-top:12px">
+                <label>Turn on in <span class="faint">(optional)</span></label>
+                <div class="seg" style="flex-wrap:wrap" role="group">
+                  ${targets.map((t) => `<button data-action="src-target" data-v="${esc(t.id)}" aria-pressed="${ov.targets.includes(t.id)}">${esc(t.displayName)}</button>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+            ${ov.error ? `<p class="ro" style="margin:10px 0 0">${esc(ov.error)}</p>` : ''}
+            ${resultRows ? `
+              <p class="section-label" style="margin-top:14px">From ${esc(ov.result.repo)} @ ${esc(short(ov.result.commit))}</p>
+              <div class="linkmap">${resultRows}</div>
+            ` : ''}
+
+            <div style="display:flex;align-items:center;gap:8px;margin-top:18px">
+              <p class="section-label" style="margin:0">Installed from GitHub</p>
+              <div class="spacer" style="flex:1"></div>
+              <button class="btn sm" data-action="src-check" ${ov.checking || ov.busy ? 'disabled' : ''}>${ov.checking ? 'Checking...' : '\u21bb Check for updates'}</button>
+              ${pending > 1 ? `<button class="btn sm primary" data-action="src-update" ${dis}>Update all (${pending})</button>` : ''}
+            </div>
+            <div class="linkmap" style="margin-top:8px" data-slot="src-statuses">
+              ${statusRows || `<div><span></span><span class="faint">${ov.statuses ? 'No skills installed from GitHub yet.' : 'Checking...'}</span><span></span></div>`}
+            </div>
+            <p class="hint" style="margin-top:8px">Updates move the old folder to quarantine, so Undo restores it.</p>
+          </div>
+        </div>
+      `;
     }
 
     _tplAddOverlay(a) {

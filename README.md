@@ -91,6 +91,16 @@ See [Desktop launcher](docs/usage.md#desktop-launcher) for custom paths and `mak
    singlet undo
    ```
 
+5. Install skills from GitHub, then keep them up to date:
+
+   ```bash
+   singlet install https://github.com/<owner>/<repo>
+   ```
+
+   ```bash
+   singlet update
+   ```
+
 To try it without touching your real setup, add `--home /tmp/singlet-sandbox` to any command.
 
 ## Learn more
@@ -102,7 +112,7 @@ To try it without touching your real setup, add `--home /tmp/singlet-sandbox` to
 
 ## Security
 
-The UI server listens on `127.0.0.1` only and has no authentication, so do not expose its port. `singlet` makes no network calls. To report a vulnerability, see [SECURITY.md](SECURITY.md).
+The UI server listens on `127.0.0.1` only and has no authentication, so do not expose its port. Only `singlet install` and `singlet update` use the network: they run `git` against `github.com` over HTTPS. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 
